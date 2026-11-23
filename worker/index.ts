@@ -21,6 +21,11 @@ async function sign(value: string, secret: string) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return encode(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value))));
 }
+async function waCipherKey(secret:string){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const raw=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode("arenka:whatsapp:secrets:v1"));return crypto.subtle.importKey("raw",raw,{name:"AES-GCM"},false,["encrypt","decrypt"])}
+async function encryptSecret(value:string,secret:string){const key=await waCipherKey(secret),iv=crypto.getRandomValues(new Uint8Array(12)),encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(value));return encode(new Uint8Array([...iv,...new Uint8Array(encrypted)]))}
+async function decryptSecret(value:string,secret:string){const bytes=decode(value),key=await waCipherKey(secret),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:bytes.slice(0,12)},key,bytes.slice(12));return new TextDecoder().decode(plain)}
+function constantTimeEqual(a:string,b:string){if(a.length!==b.length)return false;let mismatch=0;for(let i=0;i<a.length;i++)mismatch|=a.charCodeAt(i)^b.charCodeAt(i);return mismatch===0}
+async function hmacHex(value:string,secret:string){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]),signature=new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(value)));return Array.from(signature,b=>b.toString(16).padStart(2,"0")).join("")}
 async function session(c: any, userId: string, version = 0) {
   const payload = encode(new TextEncoder().encode(JSON.stringify({ sub: userId, ver: version, exp: Date.now() + 1000 * 60 * 60 * 24 * 14 })));
   const secret = c.env.SESSION_SECRET;
@@ -236,6 +241,59 @@ app.post("/api/costs",async c=>{
   await c.env.DB.prepare("INSERT INTO ad_costs(id,workspace_id,platform,campaign,spend,spend_date) VALUES(?,?,?,?,?,?)").bind(id(),c.get("workspaceId"),b.platform,String(b.campaign).trim().slice(0,160),spend,b.spend_date).run();return json(c,{ok:true},201);
 });
 app.get("/api/events",async c=>{const rows=await c.env.DB.prepare("SELECT id,event_name,page_url,source,medium,campaign,created_at FROM events WHERE workspace_id=? ORDER BY created_at DESC LIMIT 100").bind(c.get("workspaceId")).all();return json(c,rows.results);});
+app.get("/api/whatsapp/connection",async c=>{
+  const row=await c.env.DB.prepare("SELECT phone_number_id,waba_id,api_version FROM wa_connections WHERE workspace_id=?").bind(c.get("workspaceId")).first<any>();
+  return json(c,{connected:!!row,connection:row??null,webhook_url:new URL("/webhooks/whatsapp",c.req.url).toString()});
+});
+app.put("/api/whatsapp/connection",async c=>{
+  const b=await c.req.json<any>().catch(()=>({})),phone=String(b.phone_number_id??"").trim(),waba=String(b.waba_id??"").trim(),token=String(b.access_token??""),appSecret=String(b.app_secret??""),verify=String(b.verify_token??""),version=String(b.api_version??"v23.0");
+  if(!/^\d{5,30}$/.test(phone)||!/^\d{5,30}$/.test(waba)||token.length<20||token.length>4096||appSecret.length<16||appSecret.length>256||verify.length<16||verify.length>256||!/^v\d+\.\d+$/.test(version)||!c.env.SESSION_SECRET)return json(c,{error:"Lengkapi ID nomor, WABA, token, app secret, verify token (minimal 16 karakter), dan SESSION_SECRET."},400);
+  try{
+    const wid=c.get("workspaceId"),[tokenCipher,secretCipher,verifyHash]=await Promise.all([encryptSecret(token,c.env.SESSION_SECRET),encryptSecret(appSecret,c.env.SESSION_SECRET),sign(verify,c.env.SESSION_SECRET)]);
+    await c.env.DB.prepare("INSERT INTO wa_connections(workspace_id,phone_number_id,waba_id,access_token_cipher,app_secret_cipher,verify_token_hash,api_version) VALUES(?,?,?,?,?,?,?) ON CONFLICT(workspace_id) DO UPDATE SET phone_number_id=excluded.phone_number_id,waba_id=excluded.waba_id,access_token_cipher=excluded.access_token_cipher,app_secret_cipher=excluded.app_secret_cipher,verify_token_hash=excluded.verify_token_hash,api_version=excluded.api_version,updated_at=CURRENT_TIMESTAMP").bind(wid,phone,waba,tokenCipher,secretCipher,verifyHash,version).run();
+  }catch(error){console.error("WhatsApp configuration failed",error instanceof Error?error.name:"unknown");return json(c,{error:"Koneksi tidak dapat disimpan. Pastikan ID nomor belum dipakai workspace lain."},400)}
+  return json(c,{ok:true});
+});
+app.get("/api/inbox/conversations",async c=>{
+  const status=c.req.query("status")==="closed"?"closed":"open",rows=await c.env.DB.prepare("SELECT c.id,c.wa_id,c.display_name,c.status,c.last_message_at,c.last_read_at,m.body last_body,m.direction last_direction FROM wa_conversations c LEFT JOIN wa_messages m ON m.id=(SELECT id FROM wa_messages WHERE conversation_id=c.id ORDER BY sent_at DESC LIMIT 1) WHERE c.workspace_id=? AND c.status=? ORDER BY c.last_message_at DESC LIMIT 100").bind(c.get("workspaceId"),status).all();
+  return json(c,rows.results);
+});
+app.get("/api/inbox/conversations/:id/messages",async c=>{
+  const conversation=await c.env.DB.prepare("SELECT id,wa_id,display_name,status FROM wa_conversations WHERE id=? AND workspace_id=?").bind(c.req.param("id"),c.get("workspaceId")).first();
+  if(!conversation)return json(c,{error:"Percakapan tidak ditemukan."},404);
+  const rows=await c.env.DB.prepare("SELECT id,direction,message_type,body,status,sent_at FROM wa_messages WHERE conversation_id=? ORDER BY sent_at ASC LIMIT 300").bind(c.req.param("id")).all();
+  return json(c,{conversation,messages:rows.results});
+});
+app.patch("/api/inbox/conversations/:id",async c=>{
+  const b=await c.req.json<{status?:string}>().catch(()=>({} as {status?:string}));if(!["open","closed"].includes(b.status??""))return json(c,{error:"Status percakapan tidak valid."},400);
+  const result=await c.env.DB.prepare("UPDATE wa_conversations SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND workspace_id=?").bind(b.status,c.req.param("id"),c.get("workspaceId")).run();return result.meta.changes?json(c,{ok:true}):json(c,{error:"Percakapan tidak ditemukan."},404);
+});
+app.post("/api/inbox/conversations/:id/messages",async c=>{
+  const b=await c.req.json<{body?:string}>().catch(()=>({} as {body?:string})),body=String(b.body??"").trim();if(!body||body.length>4096)return json(c,{error:"Pesan wajib diisi (maksimal 4096 karakter)."},400);
+  const wid=c.get("workspaceId"),conversation=await c.env.DB.prepare("SELECT id,wa_id,phone_number_id FROM wa_conversations WHERE id=? AND workspace_id=? AND status='open'").bind(c.req.param("id"),wid).first<any>(),connection=await c.env.DB.prepare("SELECT access_token_cipher,api_version FROM wa_connections WHERE workspace_id=?").bind(wid).first<any>();
+  if(!conversation||!connection)return json(c,{error:"Percakapan terbuka atau koneksi WhatsApp tidak ditemukan."},404);
+  try{const token=await decryptSecret(connection.access_token_cipher,c.env.SESSION_SECRET??""),response=await fetch(`https://graph.facebook.com/${connection.api_version}/${conversation.phone_number_id}/messages`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({messaging_product:"whatsapp",recipient_type:"individual",to:conversation.wa_id,type:"text",text:{preview_url:false,body}})}),result:any=await response.json();if(!response.ok||!result.messages?.[0]?.id)return json(c,{error:"Meta gagal mengirim pesan. Periksa koneksi atau jendela layanan WhatsApp."},502);
+    const messageId=String(result.messages[0].id),now=new Date().toISOString();await c.env.DB.prepare("INSERT INTO wa_messages(id,workspace_id,conversation_id,message_id,direction,message_type,body,status,sent_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(id(),wid,conversation.id,messageId,"outbound","text",body,"sent",now).run();await c.env.DB.prepare("UPDATE wa_conversations SET last_message_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(now,conversation.id).run();return json(c,{ok:true},201);
+  }catch(error){console.error("WhatsApp send failed",error instanceof Error?error.name:"unknown");return json(c,{error:"Pesan belum terkirim. Periksa koneksi WhatsApp."},502)}
+});
+app.get("/webhooks/whatsapp",async c=>{
+  const mode=c.req.query("hub.mode"),token=c.req.query("hub.verify_token")??"",challenge=c.req.query("hub.challenge")??"";if(mode!=="subscribe"||!token||!challenge||challenge.length>200)return new Response("Forbidden",{status:403});
+  const rows=await c.env.DB.prepare("SELECT verify_token_hash FROM wa_connections").all<{verify_token_hash:string}>();if(!c.env.SESSION_SECRET)return new Response("Unavailable",{status:503});const hash=await sign(token,c.env.SESSION_SECRET);return rows.results.some(row=>constantTimeEqual(hash,row.verify_token_hash))?new Response(challenge,{headers:{"Content-Type":"text/plain"}}):new Response("Forbidden",{status:403});
+});
+app.post("/webhooks/whatsapp",async c=>{
+  const raw=await c.req.text();if(new TextEncoder().encode(raw).byteLength>1_000_000)return new Response("Payload too large",{status:413});let payload:any;try{payload=JSON.parse(raw)}catch{return new Response("Bad request",{status:400})}if(payload.object!=="whatsapp_business_account")return new Response("Ignored",{status:404});
+  const entries=Array.isArray(payload.entry)?payload.entry:[];for(const entry of entries)for(const change of entry.changes??[]){if(change.field!=="messages")continue;const value=change.value??{},phone=String(value.metadata?.phone_number_id??"");if(!phone)continue;
+    const connection=await c.env.DB.prepare("SELECT workspace_id,app_secret_cipher FROM wa_connections WHERE phone_number_id=?").bind(phone).first<any>();if(!connection||!c.env.SESSION_SECRET)continue;
+    let secret="";try{secret=await decryptSecret(connection.app_secret_cipher,c.env.SESSION_SECRET)}catch{continue}const supplied=c.req.header("X-Hub-Signature-256")??"",expected=`sha256=${await hmacHex(raw,secret)}`;if(!constantTimeEqual(supplied,expected))return new Response("Invalid signature",{status:401});
+    const wid=connection.workspace_id,contacts=new Map<string,string>((value.contacts??[]).map((contact:any)=>[String(contact.wa_id),String(contact.profile?.name??"").slice(0,120)]));
+    for(const message of value.messages??[]){const waId=String(message.from??"");if(!waId||!message.id)continue;const msgBody=message.type==="text"?String(message.text?.body??"").slice(0,4096):message.type==="button"?String(message.button?.text??"").slice(0,4096):`[${String(message.type??"media").slice(0,32)}]`,now=new Date(Number(message.timestamp)*1000||Date.now()).toISOString(),conversationId=id();
+      await c.env.DB.prepare("INSERT INTO wa_conversations(id,workspace_id,phone_number_id,wa_id,display_name,last_message_at) VALUES(?,?,?,?,?,?) ON CONFLICT(workspace_id,wa_id) DO UPDATE SET phone_number_id=excluded.phone_number_id,display_name=COALESCE(excluded.display_name,wa_conversations.display_name),last_message_at=excluded.last_message_at,updated_at=CURRENT_TIMESTAMP").bind(conversationId,wid,phone,waId,contacts.get(waId)||null,now).run();const conversation=await c.env.DB.prepare("SELECT id FROM wa_conversations WHERE workspace_id=? AND wa_id=?").bind(wid,waId).first<{id:string}>();if(!conversation)continue;
+      await c.env.DB.prepare("INSERT OR IGNORE INTO wa_messages(id,workspace_id,conversation_id,message_id,direction,message_type,body,status,sent_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(id(),wid,conversation.id,String(message.id).slice(0,200),"inbound",String(message.type??"unknown").slice(0,32),msgBody,"received",now).run();
+    }
+    for(const status of value.statuses??[])if(status.id)await c.env.DB.prepare("UPDATE wa_messages SET status=? WHERE message_id=? AND workspace_id=? AND direction='outbound'").bind(String(status.status??"sent").slice(0,32),String(status.id).slice(0,200),wid).run();
+  }
+  return new Response("EVENT_RECEIVED",{status:200});
+});
 app.get("/api/lead-locations",async c=>{
   const from=c.req.query("from")??new Date(Date.now()-29*86400000).toISOString().slice(0,10),to=c.req.query("to")??new Date().toISOString().slice(0,10);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)return json(c,{error:"Rentang tanggal tidak valid."},400);
@@ -275,8 +333,9 @@ app.get("/tracker.js", c => {
 });
 
 app.all("*", async (c,next)=>{
-  if(c.req.path.startsWith("/api/")||c.req.path.startsWith("/t/")||c.req.path==="/tracker.js")return next();
+  if(c.req.path.startsWith("/api/")||c.req.path.startsWith("/t/")||c.req.path==="/tracker.js"||c.req.path.startsWith("/webhooks/"))return next();
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
 export default app;
+
