@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 
-type Env = { DB: D1Database; ASSETS: Fetcher; APP_ORIGIN?: string; SESSION_SECRET?: string };
+type Env = { DB: D1Database; ASSETS: Fetcher; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
 type Variables = { userId: string; workspaceId: string; workspace: { id: string; name: string; public_key: string; currency: string } };
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 const events = ["Visit LP", "Click CTA", "Masuk WA", "MQL", "Prospek", "Closing", "Isi Form"];
@@ -19,8 +19,8 @@ async function sign(value: string, secret: string) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return encode(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value))));
 }
-async function session(c: any, userId: string) {
-  const payload = encode(new TextEncoder().encode(JSON.stringify({ sub: userId, exp: Date.now() + 1000 * 60 * 60 * 24 * 14 })));
+async function session(c: any, userId: string, version = 0) {
+  const payload = encode(new TextEncoder().encode(JSON.stringify({ sub: userId, ver: version, exp: Date.now() + 1000 * 60 * 60 * 24 * 14 })));
   const secret = c.env.SESSION_SECRET;
   if (!secret) throw new Error("SESSION_SECRET belum dikonfigurasi");
   setCookie(c, "arenka_session", `${payload}.${await sign(payload, secret)}`, { httpOnly: true, secure: new URL(c.req.url).protocol === "https:", sameSite: "Lax", path: "/", maxAge: 60 * 60 * 24 * 14 });
@@ -44,17 +44,73 @@ app.post("/api/auth/register", async c => {
       c.env.DB.prepare("INSERT INTO workspaces(id,owner_id,name,public_key) VALUES(?,?,?,?)").bind(id(), userId, body.workspace?.trim().slice(0, 80) || "Workspace Saya", publicKey),
     ]);
   } catch { return json(c, { error: "Email ini sudah terdaftar." }, 409); }
-  await session(c, userId);
+  await session(c, userId, 0);
   return json(c, { ok: true });
 });
 
 app.post("/api/auth/login", async c => {
   const body = await c.req.json<{ email?: string; password?: string }>().catch(() => ({} as { email?: string; password?: string }));
-  const row = await c.env.DB.prepare("SELECT id,password_hash FROM users WHERE email=?").bind(body.email?.trim().toLowerCase() ?? "").first<{ id: string; password_hash: string }>();
+  const row = await c.env.DB.prepare("SELECT id,password_hash,session_version FROM users WHERE email=?").bind(body.email?.trim().toLowerCase() ?? "").first<{ id: string; password_hash: string; session_version: number }>();
   if (!row) return json(c, { error: "Email atau kata sandi tidak cocok." }, 401);
   const [salt, expected] = row.password_hash.split(":");
   if (!salt || await derive(body.password ?? "", decode(salt)) !== expected) return json(c, { error: "Email atau kata sandi tidak cocok." }, 401);
-  await session(c, row.id);
+  await session(c, row.id, row.session_version);
+  return json(c, { ok: true });
+});
+
+app.post("/api/auth/forgot-password", async c => {
+  const body = await c.req.json<{ email?: string }>().catch(() => ({} as { email?: string }));
+  const email = body.email?.trim().toLowerCase() ?? "";
+  const generic = { message: "Jika email terdaftar, tautan pengaturan kata sandi akan dikirim." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(c, generic);
+  if (!c.env.RESEND_API_KEY || !c.env.RESET_EMAIL_FROM || !c.env.APP_ORIGIN || !c.env.SESSION_SECRET) return json(c, { error: "Pemulihan email belum dikonfigurasi. Hubungi administrator." }, 503);
+  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  const ipHash = await sign(ip, c.env.SESSION_SECRET);
+  const bucket = Math.floor(Date.now() / 600_000);
+  await c.env.DB.prepare("INSERT INTO password_reset_limits(ip_hash,window_bucket,request_count) VALUES(?,?,1) ON CONFLICT(ip_hash,window_bucket) DO UPDATE SET request_count=request_count+1").bind(ipHash, bucket).run();
+  const limit = await c.env.DB.prepare("SELECT request_count FROM password_reset_limits WHERE ip_hash=? AND window_bucket=?").bind(ipHash, bucket).first<{ request_count: number }>();
+  if (bucket % 144 === 0) await c.env.DB.prepare("DELETE FROM password_reset_limits WHERE window_bucket<?").bind(bucket - 144).run();
+  if (Number(limit?.request_count ?? 0) > 5) return json(c, generic);
+  const user = await c.env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first<{ id: string }>();
+  if (!user) return json(c, generic);
+  const recent = await c.env.DB.prepare("SELECT COUNT(*) total FROM password_reset_tokens WHERE user_id=? AND created_at > datetime('now','-15 minutes')").bind(user.id).first<{ total: number }>();
+  if (Number(recent?.total ?? 0) >= 3) return json(c, generic);
+  const rawToken = encode(crypto.getRandomValues(new Uint8Array(32)));
+  const tokenHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawToken))), b => b.toString(16).padStart(2, "0")).join("");
+  await c.env.DB.prepare("UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND used_at IS NULL").bind(user.id).run();
+  await c.env.DB.prepare("INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at) VALUES(?,?,?,datetime('now','+30 minutes'))").bind(id(), user.id, tokenHash).run();
+  const resetUrl = `${c.env.APP_ORIGIN}/reset-password?token=${rawToken}`;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: c.env.RESET_EMAIL_FROM,
+      to: [email],
+      subject: "Atur ulang kata sandi Arenka Ads Tracker",
+      text: `Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.\n\n${resetUrl}`,
+      html: `<p>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda.</p><p><a href="${resetUrl}">Atur kata sandi baru</a></p><p>Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.</p>`,
+    }),
+  }).catch(() => null);
+  if (!response?.ok) {
+    await c.env.DB.prepare("UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=?").bind(tokenHash).run();
+    return json(c, { error: "Email pemulihan belum dapat dikirim. Coba lagi nanti." }, 503);
+  }
+  return json(c, generic);
+});
+
+app.post("/api/auth/reset-password", async c => {
+  const body = await c.req.json<{ token?: string; password?: string }>().catch(() => ({} as { token?: string; password?: string }));
+  const token = body.token ?? "", password = body.password ?? "";
+  if (!/^[A-Za-z0-9_-]{40,50}$/.test(token) || password.length < 12 || password.length > 128) return json(c, { error: "Tautan tidak valid atau kata sandi belum memenuhi syarat." }, 400);
+  const tokenHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))), b => b.toString(16).padStart(2, "0")).join("");
+  const consumedKey = id();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const passwordHash = `${encode(salt)}:${await derive(password, salt)}`;
+  const results = await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP,consumed_key=? WHERE token_hash=? AND used_at IS NULL AND expires_at>CURRENT_TIMESTAMP").bind(consumedKey, tokenHash),
+    c.env.DB.prepare("UPDATE users SET password_hash=?,session_version=session_version+1 WHERE id=(SELECT user_id FROM password_reset_tokens WHERE consumed_key=?)").bind(passwordHash, consumedKey),
+  ]);
+  if (!results[1].meta.changes) return json(c, { error: "Tautan reset sudah dipakai atau kedaluwarsa. Minta tautan baru." }, 400);
   return json(c, { ok: true });
 });
 app.post("/api/auth/logout", c => { deleteCookie(c, "arenka_session", { path: "/" }); return json(c, { ok: true }); });
@@ -66,8 +122,10 @@ app.use("/api/*", async (c, next) => {
   const secret = c.env.SESSION_SECRET;
   if (!payload || !signature || !secret || await sign(payload, secret) !== signature) return json(c, { error: "Sesi berakhir. Silakan masuk kembali." }, 401);
   try {
-    const decoded = JSON.parse(new TextDecoder().decode(decode(payload))) as { sub: string; exp: number };
+    const decoded = JSON.parse(new TextDecoder().decode(decode(payload))) as { sub: string; ver: number; exp: number };
     if (!decoded.sub || decoded.exp < Date.now()) throw new Error();
+    const account = await c.env.DB.prepare("SELECT session_version FROM users WHERE id=?").bind(decoded.sub).first<{ session_version: number }>();
+    if (!account || decoded.ver !== account.session_version) throw new Error();
     const workspace = await c.env.DB.prepare("SELECT id,name,public_key,currency FROM workspaces WHERE owner_id=? ORDER BY created_at LIMIT 1").bind(decoded.sub).first<Variables["workspace"]>();
     if (!workspace) throw new Error();
     c.set("userId", decoded.sub); c.set("workspaceId", workspace.id); c.set("workspace", workspace);

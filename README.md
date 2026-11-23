@@ -32,6 +32,17 @@ npm run dev
 5. Deploy: `npm run deploy`.
 6. Tambahkan custom domain `trackers.arenka.biz.id` ke Worker melalui Cloudflare Workers & Pages atau konfigurasi route yang sesuai.
 
+### Email reset kata sandi
+
+Reset kata sandi memakai Resend. Verifikasi domain pengirim di Resend, buat API key khusus untuk email, lalu pasang rahasia Worker tanpa memasukkannya ke repository:
+
+```powershell
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RESET_EMAIL_FROM
+```
+
+Nilai `RESET_EMAIL_FROM` harus berupa alamat pada domain yang sudah diverifikasi, misalnya `Arenka Ads <no-reply@arenka.biz.id>`. Gunakan alamat sebenarnya yang diizinkan oleh domain Resend Anda. Migration `0003_password_reset.sql` membuat penyimpanan token dan pembatasan permintaan. Tautan reset berlaku 30 menit, sekali pakai; reset membatalkan sesi lama.
+
 ## Memasang tracker
 
 Catatan: script akan tersedia setelah custom domain aktif.
