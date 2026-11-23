@@ -11,7 +11,7 @@ Dashboard atribusi iklan dan lead berbasis Cloudflare Workers + D1. Repo dimulai
 - WhatsApp Rotator: link round-robin ke nomor WhatsApp; hitungan klik dan parameter UTM masuk ke Event logs tanpa menyimpan IP.
 - Integrasi iklan: metadata akun, event mapping, UTM, dan script tracker. OAuth dan sinkronisasi data iklan belum aktif.
 - Campaign report: biaya manual, lead, closing, revenue, ROAS, rentang tanggal, dan ekspor CSV.
-- Tracking: event logs, sumber lead, custom audience, riset iklan, dan allowlist hostname.
+- Tracking: event logs, sumber lead, landing page publik ber-CTA WhatsApp, custom audience, riset iklan, dan allowlist hostname.
 - Sumber lead Mayar: baca transaksi yang dibayar, cocokkan ke lead, dan sinkronkan secara manual.
 - API & Webhook: endpoint webhook masuk untuk membuat lead serta endpoint keluar bertanda tangan untuk event workspace.
 
