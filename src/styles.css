@@ -142,6 +142,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .planned-module p { max-width:580px; margin:0; color:#7c8782; font-size:12px; line-height:1.65; }
 .planned-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:17px; }
 .location-metrics { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.location-map-panel { overflow:hidden; margin-bottom:14px; padding:0; }
+.location-map-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px 8px; }
+.location-map-heading h2 { margin:0; color:#34403d; font-size:13px; font-weight:650; }
+.location-map-heading p { margin:4px 0 0; color:#919a95; font-size:10px; }
+.location-map-heading>span,.location-map-legend>span { display:inline-flex; align-items:center; gap:7px; color:#718079; font-size:9px; }
+.location-map-heading i,.location-map-legend i { width:7px; height:7px; border-radius:50%; background:#d4a34e; }
+.location-map-scroll { overflow-x:auto; padding:0 13px; }
+.indonesia-map { display:block; width:min(100%,880px); min-width:640px; height:auto; margin:0 auto; }
+.map-land path { fill:#e7efeb; stroke:#d4e1da; stroke-width:2; stroke-linejoin:round; }
+.map-point circle { fill:#2f786c; stroke:#fff; stroke-width:2; fill-opacity:.92; }
+.map-point text { fill:#fff; text-anchor:middle; font:600 8px "IBM Plex Mono",monospace; pointer-events:none; }
+.location-map-legend { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 18px 13px; border-top:1px solid #edf0ed; }
+.location-map-legend small { color:#929c96; font-size:9px; }
 .location-metric { display:grid; gap:10px; min-height:82px; padding:14px 15px; }
 .location-metric span { color:#87928b; font-size:10px; }
 .location-metric b { color:#35413b; font-family:"IBM Plex Mono",monospace; font-size:18px; font-weight:500; }
