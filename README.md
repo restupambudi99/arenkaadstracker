@@ -4,14 +4,16 @@ Dashboard atribusi iklan dan lead berbasis Cloudflare Workers + D1. Repo dimulai
 
 ## Modul
 
-- Ringkasan: lead, biaya, revenue, ROAS, distribusi sumber, dan tahap lead.
-- Leads: pencarian, filter status, input manual, perubahan status, dan ekspor CSV.
-- Integrasi iklan: status enam platform dan metadata akun. OAuth/provider API belum diaktifkan.
-- Event mapping: pemetaan tujuh event ke event tujuan per platform.
-- Tracking code: script embed workspace, event otomatis, dan `window.arenkaTrack(event, payload)`.
-- UTM: template parameter untuk platform iklan.
+- Ringkasan performa: lead, biaya, revenue, ROAS, sumber, dan tahap lead.
+- Leads: pencarian, impor/ekspor CSV, status, tampilan Kanban, dan jadwal follow-up.
+- Lokasi leads: ringkasan event dan konversi berdasarkan wilayah.
+- Inbox WhatsApp: percakapan Cloud API, kirim pesan, dan balasan cepat yang dapat ditinjau sebelum dikirim.
+- WhatsApp Rotator: link pendek dengan distribusi round-robin ke nomor WhatsApp dan hitungan klik tanpa penyimpanan IP.
+- Integrasi iklan: metadata akun, event mapping, UTM, dan script tracker. OAuth dan sinkronisasi data iklan belum aktif.
 - Campaign report: biaya manual, lead, closing, revenue, ROAS, rentang tanggal, dan ekspor CSV.
-- Event logs: 100 event terakhir.
+- Tracking: event logs, sumber lead, custom audience, riset iklan, dan allowlist hostname.
+- Sumber lead Mayar: baca transaksi yang dibayar, cocokkan ke lead, dan sinkronkan secara manual.
+- API & Webhook: endpoint webhook masuk untuk membuat lead serta endpoint keluar bertanda tangan untuk event workspace.
 
 ## Menjalankan lokal
 
