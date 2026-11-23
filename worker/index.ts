@@ -214,6 +214,16 @@ app.post("/api/costs",async c=>{
   await c.env.DB.prepare("INSERT INTO ad_costs(id,workspace_id,platform,campaign,spend,spend_date) VALUES(?,?,?,?,?,?)").bind(id(),c.get("workspaceId"),b.platform,String(b.campaign).trim().slice(0,160),spend,b.spend_date).run();return json(c,{ok:true},201);
 });
 app.get("/api/events",async c=>{const rows=await c.env.DB.prepare("SELECT id,event_name,page_url,source,medium,campaign,created_at FROM events WHERE workspace_id=? ORDER BY created_at DESC LIMIT 100").bind(c.get("workspaceId")).all();return json(c,rows.results);});
+app.get("/api/lead-locations",async c=>{
+  const from=c.req.query("from")??new Date(Date.now()-29*86400000).toISOString().slice(0,10),to=c.req.query("to")??new Date().toISOString().slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)return json(c,{error:"Rentang tanggal tidak valid."},400);
+  const wid=c.get("workspaceId"),range="workspace_id=? AND date(created_at) BETWEEN ? AND ?";
+  const [totals,regions]=await Promise.all([
+    c.env.DB.prepare(`SELECT COUNT(DISTINCT CASE WHEN event_name='Visit LP' THEN visitor_id END) visitors,SUM(CASE WHEN event_name='Visit LP' THEN 1 ELSE 0 END) visits,SUM(CASE WHEN lower(event_name) LIKE '%click cta%' THEN 1 ELSE 0 END) clicks,SUM(CASE WHEN lower(event_name) LIKE '%whatsapp%' OR lower(event_name)='masuk wa' THEN 1 ELSE 0 END) whatsapp,SUM(CASE WHEN event_name='MQL' THEN 1 ELSE 0 END) mql,SUM(CASE WHEN event_name='Prospek' THEN 1 ELSE 0 END) prospects,SUM(CASE WHEN event_name='Closing' THEN 1 ELSE 0 END) closing FROM events WHERE ${range}`).bind(wid,from,to).first(),
+    c.env.DB.prepare(`SELECT COALESCE(NULLIF(region,''),NULLIF(city,''),'Tidak diketahui') region,MAX(country) country,SUM(CASE WHEN event_name='Visit LP' THEN 1 ELSE 0 END) visits,SUM(CASE WHEN lower(event_name) LIKE '%click cta%' THEN 1 ELSE 0 END) clicks,SUM(CASE WHEN lower(event_name) LIKE '%whatsapp%' OR lower(event_name)='masuk wa' THEN 1 ELSE 0 END) whatsapp,SUM(CASE WHEN event_name='MQL' THEN 1 ELSE 0 END) mql,SUM(CASE WHEN event_name='Prospek' THEN 1 ELSE 0 END) prospects,SUM(CASE WHEN event_name='Closing' THEN 1 ELSE 0 END) closing FROM events WHERE ${range} GROUP BY region ORDER BY visits DESC LIMIT 50`).bind(wid,from,to).all()
+  ]);
+  return json(c,{from,to,totals,regions:regions.results});
+});
 
 app.options("/t/:key", c=>new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type","Access-Control-Max-Age":"86400"}}));
 app.post("/t/:key",async c=>{
@@ -232,7 +242,8 @@ app.post("/t/:key",async c=>{
       .bind(leadId,workspace.id,String(b.visitor_id??"").slice(0,80)||null,String(p.name??"Pengunjung baru").slice(0,120),String(p.phone??"").slice(0,40)||null,String(p.email??"").slice(0,160)||null,String(utm.source??"Direct").slice(0,80),String(utm.campaign??"").slice(0,160)||null,String(b.page_url??"").slice(0,500)||null).first<{id:string}>();
     leadId=saved?.id??leadId;
   }
-  await c.env.DB.prepare("INSERT INTO events(id,workspace_id,lead_id,event_name,page_url,referrer,source,medium,campaign,content,term,visitor_id,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id(),workspace.id,leadId,event,String(b.page_url??"").slice(0,500),String(b.referrer??"").slice(0,500),String(utm.source??"").slice(0,100),String(utm.medium??"").slice(0,100),String(utm.campaign??"").slice(0,200),String(utm.content??"").slice(0,200),String(utm.term??"").slice(0,200),String(b.visitor_id??"").slice(0,80),JSON.stringify(p).slice(0,4000)).run();
+  const cf=(c.req.raw as Request & {cf?:{country?:string;region?:string;city?:string}}).cf;
+  await c.env.DB.prepare("INSERT INTO events(id,workspace_id,lead_id,event_name,page_url,referrer,source,medium,campaign,content,term,visitor_id,payload,country,region,city) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id(),workspace.id,leadId,event,String(b.page_url??"").slice(0,500),String(b.referrer??"").slice(0,500),String(utm.source??"").slice(0,100),String(utm.medium??"").slice(0,100),String(utm.campaign??"").slice(0,200),String(utm.content??"").slice(0,200),String(utm.term??"").slice(0,200),String(b.visitor_id??"").slice(0,80),JSON.stringify(p).slice(0,4000),String(cf?.country??"").slice(0,2)||null,String(cf?.region??"").slice(0,100)||null,String(cf?.city??"").slice(0,100)||null).run();
   return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type","Access-Control-Max-Age":"86400"}});
 });
 
@@ -247,4 +258,3 @@ app.all("*", async (c,next)=>{
 });
 
 export default app;
-
