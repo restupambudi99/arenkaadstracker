@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { pbkdf2 } from "node:crypto";
 
 type Env = { DB: D1Database; ASSETS: Fetcher; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
 type Variables = { userId: string; workspaceId: string; workspace: { id: string; name: string; public_key: string; currency: string } };
@@ -10,10 +11,11 @@ const json = (c: any, data: unknown, status = 200) => c.json(data, status);
 const id = () => crypto.randomUUID();
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 const decode = (value: string) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((value.length + 3) % 4)), c => c.charCodeAt(0));
-
 async function derive(password: string, salt: Uint8Array) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  return encode(new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new Uint8Array(salt).buffer as ArrayBuffer, iterations: 180000 }, key, 256)));
+  const derived = await new Promise<Uint8Array>((resolve, reject) => {
+    pbkdf2(password, salt, 180000, 32, "sha256", (error, key) => error ? reject(error) : resolve(new Uint8Array(key)));
+  });
+  return encode(new Uint8Array(derived));
 }
 async function sign(value: string, secret: string) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -43,7 +45,10 @@ app.post("/api/auth/register", async c => {
       c.env.DB.prepare("INSERT INTO users(id,email,password_hash) VALUES(?,?,?)").bind(userId, email, `${encode(salt)}:${await derive(password, salt)}`),
       c.env.DB.prepare("INSERT INTO workspaces(id,owner_id,name,public_key) VALUES(?,?,?,?)").bind(id(), userId, body.workspace?.trim().slice(0, 80) || "Workspace Saya", publicKey),
     ]);
-  } catch { return json(c, { error: "Email ini sudah terdaftar." }, 409); }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE constraint failed: users.email")) return json(c, { error: "Email ini sudah terdaftar." }, 409);
+    return json(c, { error: "Akun tidak dapat dibuat. Coba lagi." }, 500);
+  }
   await session(c, userId, 0);
   return json(c, { ok: true });
 });
@@ -52,9 +57,17 @@ app.post("/api/auth/login", async c => {
   const body = await c.req.json<{ email?: string; password?: string }>().catch(() => ({} as { email?: string; password?: string }));
   const row = await c.env.DB.prepare("SELECT id,password_hash,session_version FROM users WHERE email=?").bind(body.email?.trim().toLowerCase() ?? "").first<{ id: string; password_hash: string; session_version: number }>();
   if (!row) return json(c, { error: "Email atau kata sandi tidak cocok." }, 401);
-  const [salt, expected] = row.password_hash.split(":");
-  if (!salt || await derive(body.password ?? "", decode(salt)) !== expected) return json(c, { error: "Email atau kata sandi tidak cocok." }, 401);
-  await session(c, row.id, row.session_version);
+  let matches = false;
+  try {
+    const [salt, expected] = row.password_hash.split(":");
+    matches = !!salt && await derive(body.password ?? "", decode(salt)) === expected;
+  } catch (error) {
+    console.error("Password verification failed", error instanceof Error ? error.name : "unknown");
+    return json(c, { error: "Autentikasi sementara tidak tersedia." }, 500);
+  }
+  if (!matches) return json(c, { error: "Email atau kata sandi tidak cocok." }, 401);
+  try { await session(c, row.id, row.session_version); }
+  catch (error) { console.error("Session creation failed", error instanceof Error ? error.name : "unknown"); return json(c, { error: "Autentikasi sementara tidak tersedia." }, 500); }
   return json(c, { ok: true });
 });
 
@@ -234,3 +247,4 @@ app.all("*", async (c,next)=>{
 });
 
 export default app;
+

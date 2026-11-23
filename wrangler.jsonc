@@ -2,9 +2,31 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "arenka-ads-tracker",
   "main": "worker/index.ts",
-  "routes": [{ "pattern": "trackers.arenka.biz.id", "custom_domain": true }],
+  "routes": [
+    {
+      "pattern": "trackers.arenka.biz.id",
+      "custom_domain": true
+    }
+  ],
   "compatibility_date": "2026-11-23",
-  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application" },
-  "d1_databases": [{ "binding": "DB", "database_name": "arenka-tracker", "database_id": "a2a41c44-d104-4287-91ec-136bd0143c17", "migrations_dir": "migrations" }],
-  "vars": { "APP_ORIGIN": "https://trackers.arenka.biz.id" }
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "arenka-tracker",
+      "database_id": "a2a41c44-d104-4287-91ec-136bd0143c17",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://trackers.arenka.biz.id"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
 }
+
