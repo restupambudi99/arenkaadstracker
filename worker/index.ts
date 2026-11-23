@@ -169,9 +169,11 @@ app.get("/api/leads", async c => {
 app.post("/api/leads", async c => {
   const b = await c.req.json<any>().catch(() => ({}));
   if (!String(b.name ?? "").trim()) return json(c, { error: "Nama lead wajib diisi." }, 400);
-  const leadId = id();
-  await c.env.DB.prepare("INSERT INTO leads(id,workspace_id,name,phone,email,status,value,source,campaign,landing_page) VALUES(?,?,?,?,?,?,?,?,?,?)")
-    .bind(leadId,c.get("workspaceId"),String(b.name).trim().slice(0,120),String(b.phone??"").slice(0,40)||null,String(b.email??"").slice(0,160)||null,["Masuk WA","MQL","Prospek","Closing","Lost"].includes(b.status)?b.status:"Masuk WA",Math.max(0,Number(b.value)||0),String(b.source??"Manual").slice(0,80),String(b.campaign??"").slice(0,160)||null,String(b.landing_page??"").slice(0,500)||null).run();
+  const leadId=id(),wid=c.get("workspaceId"),status=["Masuk WA","MQL","Prospek","Closing","Lost"].includes(b.status)?b.status:"Masuk WA",source=String(b.source??"Manual").slice(0,80),campaign=String(b.campaign??"").slice(0,160)||null,landing=String(b.landing_page??"").slice(0,500)||null;
+  await c.env.DB.batch([
+    c.env.DB.prepare("INSERT INTO leads(id,workspace_id,name,phone,email,status,value,source,campaign,landing_page) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(leadId,wid,String(b.name).trim().slice(0,120),String(b.phone??"").slice(0,40)||null,String(b.email??"").slice(0,160)||null,status,Math.max(0,Number(b.value)||0),source,campaign,landing),
+    c.env.DB.prepare("INSERT INTO events(id,workspace_id,lead_id,event_name,page_url,source,campaign,payload) VALUES(?,?,?,?,?,?,?,?)").bind(id(),wid,leadId,status,landing,source,campaign,JSON.stringify({origin:"manual"}))
+  ]);
   return json(c, { id: leadId }, 201);
 });
 app.post("/api/leads/import",async c=>{
@@ -185,6 +187,8 @@ app.post("/api/leads/import",async c=>{
 });
 app.patch("/api/leads/:id", async c => {
   const b = await c.req.json<any>().catch(() => ({}));
+  const current=await c.env.DB.prepare("SELECT status,source,campaign,landing_page FROM leads WHERE id=? AND workspace_id=?").bind(c.req.param("id"),c.get("workspaceId")).first<{status:string;source:string;campaign:string|null;landing_page:string|null}>();
+  if(!current)return json(c,{error:"Lead tidak ditemukan."},404);
   const sets:string[]=[],values:(string|number|null)[]=[];
   if(b.name!==undefined){sets.push("name=?");values.push(String(b.name).trim().slice(0,120))}
   if(b.status!==undefined){if(!["Masuk WA","MQL","Prospek","Closing","Lost"].includes(b.status))return json(c,{error:"Status lead tidak valid."},400);sets.push("status=?");values.push(b.status)}
@@ -194,6 +198,7 @@ app.patch("/api/leads/:id", async c => {
   if(!sets.length)return json(c,{error:"Tidak ada perubahan."},400);
   const result = await c.env.DB.prepare(`UPDATE leads SET ${sets.join(",")},updated_at=CURRENT_TIMESTAMP WHERE id=? AND workspace_id=?`)
     .bind(...values,c.req.param("id"),c.get("workspaceId")).run();
+  if(result.meta.changes&&b.status!==undefined&&b.status!==current.status)await c.env.DB.prepare("INSERT INTO events(id,workspace_id,lead_id,event_name,page_url,source,campaign,payload) VALUES(?,?,?,?,?,?,?,?)").bind(id(),c.get("workspaceId"),c.req.param("id"),b.status,current.landing_page,current.source,current.campaign,JSON.stringify({origin:"lead_status"})).run();
   return result.meta.changes ? json(c,{ok:true}) : json(c,{error:"Lead tidak ditemukan."},404);
 });
 
@@ -219,11 +224,11 @@ app.put("/api/integrations/:platform", async c=>{
   return json(c,{ok:true,note:"Akun tersimpan. OAuth platform belum diaktifkan."});
 });
 app.get("/api/report", async c=>{
-  const from=c.req.query("from")??new Date(Date.now()-29*86400000).toISOString().slice(0,10),to=c.req.query("to")??new Date().toISOString().slice(0,10),wid=c.get("workspaceId");
+  const from=c.req.query("from")??new Date(Date.now()-29*86400000).toISOString().slice(0,10),to=c.req.query("to")??new Date().toISOString().slice(0,10),wid=c.get("workspaceId"),mode=c.req.query("mode")==="events"?"events":"realtime";
   if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)return json(c,{error:"Rentang tanggal laporan tidak valid."},400);
-  const rows=await c.env.DB.prepare(`SELECT CASE lower(source) WHEN 'meta' THEN 'Meta' WHEN 'facebook' THEN 'Meta' WHEN 'instagram' THEN 'Meta' WHEN 'google' THEN 'Google Ads' WHEN 'google ads' THEN 'Google Ads' WHEN 'google_ads' THEN 'Google Ads' WHEN 'tiktok' THEN 'TikTok' WHEN 'linkedin' THEN 'LinkedIn' WHEN 'chatgpt ads' THEN 'ChatGPT Ads' ELSE source END platform,COALESCE(campaign,'') campaign,COUNT(*) leads,SUM(CASE WHEN status='Masuk WA' THEN 1 ELSE 0 END) whatsapp,SUM(CASE WHEN status='MQL' THEN 1 ELSE 0 END) mql,SUM(CASE WHEN status='Prospek' THEN 1 ELSE 0 END) prospects,SUM(CASE WHEN status='Closing' THEN 1 ELSE 0 END) closing,SUM(CASE WHEN status='Closing' THEN value ELSE 0 END) revenue FROM leads WHERE workspace_id=? AND date(first_seen) BETWEEN ? AND ? GROUP BY platform,campaign ORDER BY leads DESC`).bind(wid,from,to).all();
+  const rows=mode==="events"?await c.env.DB.prepare(`WITH conversions AS (SELECT CASE lower(e.source) WHEN 'meta' THEN 'Meta' WHEN 'facebook' THEN 'Meta' WHEN 'instagram' THEN 'Meta' WHEN 'google' THEN 'Google Ads' WHEN 'google ads' THEN 'Google Ads' WHEN 'google_ads' THEN 'Google Ads' WHEN 'tiktok' THEN 'TikTok' WHEN 'linkedin' THEN 'LinkedIn' WHEN 'chatgpt ads' THEN 'ChatGPT Ads' ELSE COALESCE(e.source,'Direct') END platform,COALESCE(e.campaign,'') campaign,e.lead_id,MAX(CASE WHEN lower(e.event_name) LIKE '%click cta%' OR lower(e.event_name) LIKE '%whatsapp%' OR e.event_name='Masuk WA' THEN 1 ELSE 0 END) whatsapp,MAX(CASE WHEN e.event_name='MQL' THEN 1 ELSE 0 END) mql,MAX(CASE WHEN e.event_name='Prospek' THEN 1 ELSE 0 END) prospects,MAX(CASE WHEN e.event_name='Closing' THEN 1 ELSE 0 END) closing FROM events e WHERE e.workspace_id=? AND e.lead_id IS NOT NULL AND date(e.created_at) BETWEEN ? AND ? GROUP BY platform,campaign,e.lead_id) SELECT c.platform,c.campaign,COUNT(*) leads,SUM(c.whatsapp) whatsapp,SUM(c.mql) mql,SUM(c.prospects) prospects,SUM(c.closing) closing,SUM(CASE WHEN c.closing=1 THEN l.value ELSE 0 END) revenue FROM conversions c JOIN leads l ON l.id=c.lead_id GROUP BY c.platform,c.campaign ORDER BY leads DESC`).bind(wid,from,to).all():await c.env.DB.prepare(`SELECT CASE lower(source) WHEN 'meta' THEN 'Meta' WHEN 'facebook' THEN 'Meta' WHEN 'instagram' THEN 'Meta' WHEN 'google' THEN 'Google Ads' WHEN 'google ads' THEN 'Google Ads' WHEN 'google_ads' THEN 'Google Ads' WHEN 'tiktok' THEN 'TikTok' WHEN 'linkedin' THEN 'LinkedIn' WHEN 'chatgpt ads' THEN 'ChatGPT Ads' ELSE source END platform,COALESCE(campaign,'') campaign,COUNT(*) leads,SUM(CASE WHEN status='Masuk WA' THEN 1 ELSE 0 END) whatsapp,SUM(CASE WHEN status='MQL' THEN 1 ELSE 0 END) mql,SUM(CASE WHEN status='Prospek' THEN 1 ELSE 0 END) prospects,SUM(CASE WHEN status='Closing' THEN 1 ELSE 0 END) closing,SUM(CASE WHEN status='Closing' THEN value ELSE 0 END) revenue FROM leads WHERE workspace_id=? AND date(first_seen) BETWEEN ? AND ? GROUP BY platform,campaign ORDER BY leads DESC`).bind(wid,from,to).all();
   const spend=await c.env.DB.prepare("SELECT platform,campaign,SUM(spend) spend FROM ad_costs WHERE workspace_id=? AND spend_date BETWEEN ? AND ? GROUP BY platform,campaign").bind(wid,from,to).all();
-  return json(c,{rows:rows.results,spend:spend.results,from,to});
+  return json(c,{rows:rows.results,spend:spend.results,from,to,mode});
 });
 app.post("/api/costs",async c=>{
   const b=await c.req.json<any>().catch(()=>({})),spend=Math.round(Number(b.spend));
@@ -265,7 +270,7 @@ app.post("/t/:key",async c=>{
 });
 
 app.get("/tracker.js", c => {
-  const js = `(function(){var endpoint=${JSON.stringify(new URL(c.req.url).origin)},key=${JSON.stringify(c.req.query("k")??"")},q=new URLSearchParams(location.search),vid=localStorage.getItem('arenka_vid')||crypto.randomUUID();localStorage.setItem('arenka_vid',vid);function send(event,payload){var utm={};['source','medium','campaign','term','content'].forEach(function(k){utm[k]=q.get('utm_'+k)||sessionStorage.getItem('a_utm_'+k)||'';if(q.get('utm_'+k))sessionStorage.setItem('a_utm_'+k,q.get('utm_'+k))});fetch(endpoint+'/t/'+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:event,payload:payload||{},utm:utm,page_url:location.href,referrer:document.referrer,visitor_id:vid}),keepalive:true}).catch(function(){})}window.arenkaTrack=send;send('Visit LP');document.addEventListener('click',function(e){var a=e.target.closest('a[href^="https://wa.me"],a[href^="https://api.whatsapp.com"],a[data-track]');if(a)send(a.dataset.track||'Click CTA',{href:a.href,text:(a.innerText||'').slice(0,120)})},true);})();`;
+  const js = `(function(){var endpoint=${JSON.stringify(new URL(c.req.url).origin)},key=${JSON.stringify(c.req.query("k")??"")},q=new URLSearchParams(location.search),vid=localStorage.getItem('arenka_vid')||crypto.randomUUID();localStorage.setItem('arenka_vid',vid);function send(event,payload){var utm={};['source','medium','campaign','term','content'].forEach(function(k){utm[k]=q.get('utm_'+k)||sessionStorage.getItem('a_utm_'+k)||'';if(q.get('utm_'+k))sessionStorage.setItem('a_utm_'+k,q.get('utm_'+k))});fetch(endpoint+'/t/'+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:event,payload:payload||{},utm:utm,page_url:location.href,referrer:document.referrer,visitor_id:vid}),keepalive:true}).catch(function(){})}window.arenkaTrack=send;send('Visit LP');document.addEventListener('click',function(e){var a=e.target.closest('a[href^="https://wa.me"],a[href^="https://api.whatsapp.com"],a[data-track]');if(a){var event=a.dataset.track||(a.href.indexOf('wa.me')>=0||a.href.indexOf('api.whatsapp.com')>=0?'Masuk WA':'Click CTA');send(event,{href:a.href,text:(a.innerText||'').slice(0,120)})}},true);})();`;
   return new Response(js,{headers:{"Content-Type":"application/javascript; charset=utf-8","Cache-Control":"public, max-age=300","Access-Control-Allow-Origin":"*"}});
 });
 
