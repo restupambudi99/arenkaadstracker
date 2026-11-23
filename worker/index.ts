@@ -13,7 +13,7 @@ const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replac
 const decode = (value: string) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/") + "===".slice((value.length + 3) % 4)), c => c.charCodeAt(0));
 async function derive(password: string, salt: Uint8Array) {
   const derived = await new Promise<Uint8Array>((resolve, reject) => {
-    pbkdf2(password, salt, 180000, 32, "sha256", (error, key) => error ? reject(error) : resolve(new Uint8Array(key)));
+    pbkdf2(password, salt, 100000, 32, "sha256", (error, key) => error ? reject(error) : resolve(new Uint8Array(key)));
   });
   return encode(new Uint8Array(derived));
 }
