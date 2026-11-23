@@ -174,6 +174,15 @@ app.post("/api/leads", async c => {
     .bind(leadId,c.get("workspaceId"),String(b.name).trim().slice(0,120),String(b.phone??"").slice(0,40)||null,String(b.email??"").slice(0,160)||null,["Masuk WA","MQL","Prospek","Closing","Lost"].includes(b.status)?b.status:"Masuk WA",Math.max(0,Number(b.value)||0),String(b.source??"Manual").slice(0,80),String(b.campaign??"").slice(0,160)||null,String(b.landing_page??"").slice(0,500)||null).run();
   return json(c, { id: leadId }, 201);
 });
+app.post("/api/leads/import",async c=>{
+  const body=await c.req.json<{leads?:Array<Record<string,unknown>>}>().catch(()=>({} as {leads?:Array<Record<string,unknown>>})),rows=body.leads;
+  if(!Array.isArray(rows)||rows.length===0||rows.length>500)return json(c,{error:"Pilih antara 1 sampai 500 lead per impor."},400);
+  if(rows.some(row=>!String(row.name??"").trim()))return json(c,{error:"Setiap baris impor harus memiliki nama."},400);
+  const wid=c.get("workspaceId"),allowed=["Masuk WA","MQL","Prospek","Closing","Lost"];
+  const statements=rows.map(row=>c.env.DB.prepare("INSERT INTO leads(id,workspace_id,name,phone,email,status,value,source,campaign,landing_page) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(id(),wid,String(row.name).trim().slice(0,120),String(row.phone??"").slice(0,40)||null,String(row.email??"").slice(0,160)||null,allowed.includes(String(row.status))?String(row.status):"Masuk WA",Math.max(0,Number(row.value)||0),String(row.source??"Impor CSV").slice(0,80),String(row.campaign??"").slice(0,160)||null,String(row.landing_page??"").slice(0,500)||null));
+  await c.env.DB.batch(statements);
+  return json(c,{created:rows.length},201);
+});
 app.patch("/api/leads/:id", async c => {
   const b = await c.req.json<any>().catch(() => ({}));
   const sets:string[]=[],values:(string|number|null)[]=[];
@@ -211,6 +220,7 @@ app.put("/api/integrations/:platform", async c=>{
 });
 app.get("/api/report", async c=>{
   const from=c.req.query("from")??new Date(Date.now()-29*86400000).toISOString().slice(0,10),to=c.req.query("to")??new Date().toISOString().slice(0,10),wid=c.get("workspaceId");
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)return json(c,{error:"Rentang tanggal laporan tidak valid."},400);
   const rows=await c.env.DB.prepare(`SELECT CASE lower(source) WHEN 'meta' THEN 'Meta' WHEN 'facebook' THEN 'Meta' WHEN 'instagram' THEN 'Meta' WHEN 'google' THEN 'Google Ads' WHEN 'google ads' THEN 'Google Ads' WHEN 'google_ads' THEN 'Google Ads' WHEN 'tiktok' THEN 'TikTok' WHEN 'linkedin' THEN 'LinkedIn' WHEN 'chatgpt ads' THEN 'ChatGPT Ads' ELSE source END platform,COALESCE(campaign,'') campaign,COUNT(*) leads,SUM(CASE WHEN status='Masuk WA' THEN 1 ELSE 0 END) whatsapp,SUM(CASE WHEN status='MQL' THEN 1 ELSE 0 END) mql,SUM(CASE WHEN status='Prospek' THEN 1 ELSE 0 END) prospects,SUM(CASE WHEN status='Closing' THEN 1 ELSE 0 END) closing,SUM(CASE WHEN status='Closing' THEN value ELSE 0 END) revenue FROM leads WHERE workspace_id=? AND date(first_seen) BETWEEN ? AND ? GROUP BY platform,campaign ORDER BY leads DESC`).bind(wid,from,to).all();
   const spend=await c.env.DB.prepare("SELECT platform,campaign,SUM(spend) spend FROM ad_costs WHERE workspace_id=? AND spend_date BETWEEN ? AND ? GROUP BY platform,campaign").bind(wid,from,to).all();
   return json(c,{rows:rows.results,spend:spend.results,from,to});
