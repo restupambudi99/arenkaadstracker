@@ -155,6 +155,9 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.get("/api/me", c => json(c, { workspace: c.get("workspace") }));
+app.get("/api/tracking/domains",async c=>{const rows=await c.env.DB.prepare("SELECT id,hostname,created_at FROM custom_domains WHERE workspace_id=? ORDER BY created_at DESC").bind(c.get("workspaceId")).all();return json(c,{domains:rows.results,dns_target:"trackers.arenka.biz.id"})});
+app.post("/api/tracking/domains",async c=>{const body=await c.req.json<{hostname?:string}>().catch(()=>({} as {hostname?:string})),hostname=String(body.hostname??"").trim().toLowerCase().replace(/\.$/,"");if(hostname.length>253||!hostname.includes(".")||!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(hostname))return json(c,{error:"Masukkan hostname valid tanpa https://, port, path, atau wildcard."},400);if(["arenka.biz.id","trackers.arenka.biz.id"].includes(hostname))return json(c,{error:"Domain tracker Arenka tidak perlu ditambahkan sebagai domain kustom."},400);const domainId=id();try{await c.env.DB.prepare("INSERT INTO custom_domains(id,workspace_id,hostname) VALUES(?,?,?)").bind(domainId,c.get("workspaceId"),hostname).run()}catch(error){if(error instanceof Error&&error.message.includes("UNIQUE constraint failed"))return json(c,{error:"Domain ini sudah ada di workspace."},409);throw error}return json(c,{id:domainId,hostname,dns_target:"trackers.arenka.biz.id",status:"pending"},201)});
+app.delete("/api/tracking/domains/:id",async c=>{const result=await c.env.DB.prepare("DELETE FROM custom_domains WHERE id=? AND workspace_id=?").bind(c.req.param("id"),c.get("workspaceId")).run();return result.meta.changes?json(c,{ok:true}):json(c,{error:"Domain tidak ditemukan."},404)});
 app.get("/api/tracking/status",async c=>{const row=await c.env.DB.prepare("SELECT COUNT(*) total,MAX(created_at) last_event,MAX(CASE WHEN event_name='Visit LP' THEN created_at END) last_visit FROM events WHERE workspace_id=?").bind(c.get("workspaceId")).first<{total:number;last_event:string|null;last_visit:string|null}>();return json(c,{...row,tracker_url:`${new URL(c.req.url).origin}/tracker.js?k=${c.get("workspace").public_key}`})});
 const audienceStageNames=["Closing","Prospek","MQL","Isi Form"] as const;
 type AudienceStageName=typeof audienceStageNames[number];
@@ -356,6 +359,7 @@ app.options("/t/:key", c=>new Response(null,{status:204,headers:{"Access-Control
 app.post("/t/:key",async c=>{
   const workspace=await c.env.DB.prepare("SELECT id FROM workspaces WHERE public_key=?").bind(c.req.param("key")).first<{id:string}>();
   if(!workspace)return new Response(null,{status:404,headers:{"Access-Control-Allow-Origin":"*"}});
+  const origin=c.req.header("Origin");if(origin){const domains=await c.env.DB.prepare("SELECT hostname FROM custom_domains WHERE workspace_id=?").bind(workspace.id).all<{hostname:string}>();if(domains.results.length){let hostname="";try{hostname=new URL(origin).hostname.toLowerCase()}catch{return new Response(null,{status:403,headers:{"Access-Control-Allow-Origin":"null"}})}if(!domains.results.some(row=>row.hostname===hostname||hostname.endsWith(`.${row.hostname}`)))return new Response(null,{status:403,headers:{"Access-Control-Allow-Origin":"null"}})}}
   const raw=await c.req.text();
   if(new TextEncoder().encode(raw).byteLength>8192)return new Response(null,{status:413,headers:{"Access-Control-Allow-Origin":"*"}});
   let b:any={};try{b=JSON.parse(raw)}catch{return new Response(null,{status:400,headers:{"Access-Control-Allow-Origin":"*"}})}
