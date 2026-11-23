@@ -493,6 +493,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .audience-consent { display:flex!important; align-items:flex-start; gap:9px!important; padding:10px; border:1px solid #e6e8df; border-radius:7px; background:#fafaf6; cursor:pointer; }
 .audience-consent b { color:#4f5d53; font-size:9px; }
 .audience-consent small { color:#7f8b81!important; font-size:8px!important; line-height:1.5; }
+.source-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:11px; margin-bottom:13px; }
+.source-metrics>section { display:grid; gap:10px; min-height:83px; padding:14px 16px; box-shadow:0 1px 1px #182b2410; }
+.source-metrics span { color:#7d8982; font-size:10px; }
+.source-metrics b { color:#34413c; font:500 17px "IBM Plex Mono",monospace; }
+.source-privacy { display:flex; align-items:flex-start; gap:10px; margin-bottom:14px; padding:13px 15px; border-color:#e3e9df; background:#fbfcf8; color:#628177; }
+.source-privacy>svg { flex:none; margin-top:1px; }
+.source-privacy b { color:#536256; font-size:10px; font-weight:650; }
+.source-privacy p { margin:4px 0 0; color:#818c83; font-size:9px; line-height:1.55; }
+.store-connectors { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch; gap:12px; margin-bottom:14px; }
+.store-connector { display:flex; min-width:0; flex-direction:column; padding:15px; box-shadow:0 1px 1px #182b2410; }
+.store-connector-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.store-icon { display:grid; width:34px; height:34px; place-items:center; border:1px solid #e6ece7; border-radius:7px; color:#628177; background:#f8faf7; }
+.store-connector h2 { margin:13px 0 5px; color:#3e4a44; font-size:12px; font-weight:650; }
+.store-connector>p { flex:1; margin:0 0 14px; color:#87928b; font-size:9px; line-height:1.55; }
+.store-connector-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; min-height:31px; }
+.store-connector-actions>span { margin-right:auto; color:#929c95; font-size:9px; }
+.store-connector-pending { background:#fcfdfb; }
+.source-orders { overflow:hidden; }
+.source-filters { display:flex; flex-wrap:wrap; gap:4px; }
+.source-filters button { min-height:30px; padding:0 9px; border:1px solid transparent; border-radius:6px; color:#77847c; background:transparent; font-size:9px; cursor:pointer; }
+.source-filters button:hover,.source-filters button.selected { border-color:#dce7e1; color:#27635c; background:#eef5f1; }
+.source-contact { display:block; margin-top:3px; color:#929c95; font-size:9px; }
+.source-consent { display:flex!important; align-items:flex-start; gap:9px!important; padding:10px; border:1px solid #e6e8df; border-radius:7px; background:#fafaf6; cursor:pointer; }
+.source-consent input { width:15px; height:15px; flex:none; margin:2px 0 0; accent-color:#225c57; }
+.source-consent span { color:#68756d; font-size:9px; line-height:1.5; }
+@media(max-width:900px) { .store-connectors { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:620px) { .source-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }.source-metrics>section { min-height:75px; padding:11px; }.store-connectors { grid-template-columns:1fr; gap:8px; }.store-connector { padding:13px; }.source-orders .table-toolbar { align-items:flex-start; flex-direction:column; }.source-contact { font-size:10px; } }
 @media(max-width:1050px) { .competitor-grid,.swipe-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.ad-research-toolbar { flex-wrap:wrap; }.ad-research-toolbar .search-wrap { flex:1 1 100%; max-width:none; }.ad-research-toolbar .row-count { margin-left:auto; } }
 @media(max-width:850px) { .audience-platform-grid { grid-template-columns:1fr; } }
 @media(max-width:620px) { .audience-summary { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }.audience-summary>section { min-height:75px; padding:11px; }.audience-summary>section:last-child { grid-column:span 2; }.audience-platform-heading { align-items:flex-start; flex-wrap:wrap; }.audience-platform-heading>div:nth-child(2) { min-width:calc(100% - 52px); }.audience-offline { margin-left:43px; }.audience-item { align-items:flex-start; flex-direction:column; }.audience-item-actions { justify-content:flex-end; width:100%; }.audience-choice-grid,.audience-stage-choices { grid-template-columns:1fr; }.audience-choice { min-height:48px; } }
