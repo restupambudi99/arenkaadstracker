@@ -262,6 +262,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .utm-definitions code { color:#52796f; font:9px "IBM Plex Mono",monospace; }
 .utm-definitions span { color:#8a948e; font-size:9px; }
 .table-panel { overflow:hidden; box-shadow:0 1px 1px #182b2410; }
+.row-actions { display:flex; align-items:center; gap:5px; min-width:150px; }
+.rotator-open-link { display:inline-flex; align-items:center; gap:5px; min-height:36px; padding:0 10px; border:1px solid #dce4de; border-radius:6px; color:#4a6258; font-size:10px; text-decoration:none; }
+.rotator-open-link:hover { background:#f3f6f3; }
+.rotator-open-link:focus-visible { outline:2px solid #4e9389; outline-offset:2px; }
+.quick-reply-preview { max-width:560px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .table-toolbar { display:flex; align-items:center; gap:12px; min-height:64px; padding:12px 17px; border-bottom:1px solid #e9ede9; }
 .view-toggle { display:flex; flex:none; align-items:center; gap:3px; padding:3px; border:1px solid #e3e9e4; border-radius:7px; background:#f8faf8; }
 .view-toggle button { display:inline-flex; align-items:center; gap:6px; min-height:29px; padding:0 8px; border:0; border-radius:5px; color:#78847e; background:transparent; font-size:10px; }
@@ -408,6 +413,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .message-bubble p { margin:0 0 6px; color:#39463f; font-size:11px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .message-bubble small { color:#929b95; font-size:8px; }
 .thread-compose { display:flex; gap:8px; padding:12px; border-top:1px solid #e9ede9; }
+.thread-compose select { max-width:145px; min-width:108px; height:38px; padding:0 8px; font-size:9px; }
 .thread-compose input { min-width:0; flex:1; height:38px; font-size:10px; }
 .thread-compose button { width:39px; padding:0; }
 .thread-placeholder { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#87948d; }
