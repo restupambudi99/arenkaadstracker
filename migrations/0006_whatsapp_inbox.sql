@@ -5,7 +5,7 @@ CREATE TABLE wa_connections (
   access_token_cipher TEXT NOT NULL,
   app_secret_cipher TEXT NOT NULL,
   verify_token_hash TEXT NOT NULL,
-  api_version TEXT NOT NULL DEFAULT 'v23.0',
+  api_version TEXT NOT NULL DEFAULT 'v27.0',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

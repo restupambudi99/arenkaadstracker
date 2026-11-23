@@ -246,7 +246,7 @@ app.get("/api/whatsapp/connection",async c=>{
   return json(c,{connected:!!row,connection:row??null,webhook_url:new URL("/webhooks/whatsapp",c.req.url).toString()});
 });
 app.put("/api/whatsapp/connection",async c=>{
-  const b=await c.req.json<any>().catch(()=>({})),phone=String(b.phone_number_id??"").trim(),waba=String(b.waba_id??"").trim(),token=String(b.access_token??""),appSecret=String(b.app_secret??""),verify=String(b.verify_token??""),version=String(b.api_version??"v23.0");
+  const b=await c.req.json<any>().catch(()=>({})),phone=String(b.phone_number_id??"").trim(),waba=String(b.waba_id??"").trim(),token=String(b.access_token??""),appSecret=String(b.app_secret??""),verify=String(b.verify_token??""),version=String(b.api_version??"v27.0");
   if(!/^\d{5,30}$/.test(phone)||!/^\d{5,30}$/.test(waba)||token.length<20||token.length>4096||appSecret.length<16||appSecret.length>256||verify.length<16||verify.length>256||!/^v\d+\.\d+$/.test(version)||!c.env.SESSION_SECRET)return json(c,{error:"Lengkapi ID nomor, WABA, token, app secret, verify token (minimal 16 karakter), dan SESSION_SECRET."},400);
   try{
     const wid=c.get("workspaceId"),[tokenCipher,secretCipher,verifyHash]=await Promise.all([encryptSecret(token,c.env.SESSION_SECRET),encryptSecret(appSecret,c.env.SESSION_SECRET),sign(verify,c.env.SESSION_SECRET)]);
