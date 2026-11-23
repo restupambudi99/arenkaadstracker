@@ -155,6 +155,7 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.get("/api/me", c => json(c, { workspace: c.get("workspace") }));
+app.get("/api/tracking/status",async c=>{const row=await c.env.DB.prepare("SELECT COUNT(*) total,MAX(created_at) last_event,MAX(CASE WHEN event_name='Visit LP' THEN created_at END) last_visit FROM events WHERE workspace_id=?").bind(c.get("workspaceId")).first<{total:number;last_event:string|null;last_visit:string|null}>();return json(c,{...row,tracker_url:`${new URL(c.req.url).origin}/tracker.js?k=${c.get("workspace").public_key}`})});
 const audienceStageNames=["Closing","Prospek","MQL","Isi Form"] as const;
 type AudienceStageName=typeof audienceStageNames[number];
 function parseAudienceStages(value:string):AudienceStageName[]{try{const parsed=JSON.parse(value);return Array.isArray(parsed)?parsed.filter((item):item is AudienceStageName=>audienceStageNames.includes(item)):[]}catch{return []}}
@@ -384,4 +385,3 @@ app.all("*", async (c,next)=>{
 });
 
 export default app;
-
