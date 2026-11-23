@@ -160,9 +160,10 @@ app.get("/api/summary", async c => {
   return json(c, { leads: Number(l?.total ?? 0), closing: Number(l?.closing ?? 0), revenue, spend: adSpend, roas: adSpend ? revenue / adSpend : null, events: Number((eventCount as any)?.total ?? 0), stages: stages.results, sources: bySource.results });
 });
 app.get("/api/leads", async c => {
-  const q = `%${(c.req.query("q") ?? "").slice(0, 80)}%`, status = c.req.query("status");
-  const rows = await c.env.DB.prepare(`SELECT * FROM leads WHERE workspace_id=? AND (name LIKE ? OR COALESCE(phone,'') LIKE ? OR COALESCE(email,'') LIKE ?) ${status && ["Masuk WA","MQL","Prospek","Closing","Lost"].includes(status) ? "AND status=?" : ""} ORDER BY first_seen DESC LIMIT 200`)
-    .bind(...[c.get("workspaceId"), q, q, q, ...(status && ["Masuk WA","MQL","Prospek","Closing","Lost"].includes(status) ? [status] : [])]).all();
+  const q = `%${(c.req.query("q") ?? "").slice(0, 80)}%`, status = c.req.query("status"), follow=c.req.query("follow_up");
+  const validStatus=!!status&&["Masuk WA","MQL","Prospek","Closing","Lost"].includes(status),followClause=follow==="overdue"?"AND follow_up_at IS NOT NULL AND date(follow_up_at)<date('now')":follow==="today"?"AND date(follow_up_at)=date('now')":follow==="upcoming"?"AND date(follow_up_at)>date('now')":"";
+  const rows = await c.env.DB.prepare(`SELECT * FROM leads WHERE workspace_id=? AND (name LIKE ? OR COALESCE(phone,'') LIKE ? OR COALESCE(email,'') LIKE ?) ${validStatus ? "AND status=?" : ""} ${followClause} ORDER BY CASE WHEN follow_up_at IS NULL THEN 1 ELSE 0 END,follow_up_at,first_seen DESC LIMIT 200`)
+    .bind(...[c.get("workspaceId"), q, q, q, ...(validStatus ? [status] : [])]).all();
   return json(c, rows.results);
 });
 app.post("/api/leads", async c => {
@@ -175,9 +176,15 @@ app.post("/api/leads", async c => {
 });
 app.patch("/api/leads/:id", async c => {
   const b = await c.req.json<any>().catch(() => ({}));
-  if (!b.status && b.name === undefined && b.value === undefined) return json(c, { error: "Tidak ada perubahan." }, 400);
-  const result = await c.env.DB.prepare("UPDATE leads SET name=COALESCE(?,name),status=COALESCE(?,status),value=COALESCE(?,value),updated_at=CURRENT_TIMESTAMP WHERE id=? AND workspace_id=?")
-    .bind(b.name ? String(b.name).trim().slice(0,120) : null,["Masuk WA","MQL","Prospek","Closing","Lost"].includes(b.status)?b.status:null,b.value === undefined?null:Math.max(0,Number(b.value)||0),c.req.param("id"),c.get("workspaceId")).run();
+  const sets:string[]=[],values:(string|number|null)[]=[];
+  if(b.name!==undefined){sets.push("name=?");values.push(String(b.name).trim().slice(0,120))}
+  if(b.status!==undefined){if(!["Masuk WA","MQL","Prospek","Closing","Lost"].includes(b.status))return json(c,{error:"Status lead tidak valid."},400);sets.push("status=?");values.push(b.status)}
+  if(b.value!==undefined){sets.push("value=?");values.push(Math.max(0,Number(b.value)||0))}
+  if(b.follow_up_at!==undefined){if(b.follow_up_at!==null&&b.follow_up_at!==""&&!/^\d{4}-\d{2}-\d{2}$/.test(b.follow_up_at))return json(c,{error:"Tanggal follow-up tidak valid."},400);sets.push("follow_up_at=?");values.push(b.follow_up_at||null)}
+  if(b.follow_up_note!==undefined){sets.push("follow_up_note=?");values.push(String(b.follow_up_note??"").trim().slice(0,500)||null)}
+  if(!sets.length)return json(c,{error:"Tidak ada perubahan."},400);
+  const result = await c.env.DB.prepare(`UPDATE leads SET ${sets.join(",")},updated_at=CURRENT_TIMESTAMP WHERE id=? AND workspace_id=?`)
+    .bind(...values,c.req.param("id"),c.get("workspaceId")).run();
   return result.meta.changes ? json(c,{ok:true}) : json(c,{error:"Lead tidak ditemukan."},404);
 });
 
