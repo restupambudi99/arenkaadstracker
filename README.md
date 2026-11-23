@@ -45,7 +45,7 @@ Nilai `RESET_EMAIL_FROM` harus berupa alamat pada domain yang sudah diverifikasi
 
 ## Memasang tracker
 
-Catatan: script akan tersedia setelah custom domain aktif.
+Worker aplikasi saat ini aktif pada `trackers.arenka.biz.id`, dan script tracker tersedia pada origin tersebut:
 
 ```html
 <script async src="https://trackers.arenka.biz.id/tracker.js?k=WORKSPACE_KEY"></script>
@@ -56,6 +56,12 @@ Kode ini menyimpan UTM sesi, merekam `Visit LP`, serta klik tautan WhatsApp dan 
 ```js
 window.arenkaTrack("Masuk WA", { name: "Nama lead", phone: "+62..." });
 ```
+
+### Custom domain pelanggan
+
+Menu Custom Domain saat ini menyimpan hostname pada allowlist workspace untuk validasi origin event. Pendaftaran tersebut **belum** membuat DNS, sertifikat SSL, atau routing Worker untuk hostname pelanggan. Record CNAME ke `trackers.arenka.biz.id` saja tidak mengarahkan request ke Worker untuk domain di luar zona Cloudflare Arenka.
+
+Penerimaan domain eksternal secara otomatis memerlukan Cloudflare for SaaS pada zona provider, konfigurasi fallback origin/hostname routing, verifikasi kepemilikan, serta sinkronisasi status dan penghapusan custom hostname melalui API Cloudflare. Jangan menambahkan Worker route wildcard `*/*` pada zona `arenka.biz.id`: wildcard dapat mengambil trafik subdomain lain. Sampai provisioning itu dibuat, anggap domain pelanggan sebagai *allowlist saja* dan jangan menjanjikan custom URL atau SSL aktif.
 
 ## Kondisi provider iklan
 
