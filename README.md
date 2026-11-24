@@ -7,7 +7,7 @@ Dashboard atribusi iklan dan lead berbasis Cloudflare Workers + D1. Repo dimulai
 - Ringkasan performa: lead, biaya, revenue, ROAS, sumber, dan tahap lead.
 - Leads: pencarian, impor/ekspor CSV, status, tampilan Kanban, dan jadwal follow-up.
 - Lokasi leads: ringkasan event dan konversi berdasarkan wilayah.
-- Inbox WhatsApp: percakapan Cloud API, kirim pesan teks dan template Meta yang disetujui, serta balasan cepat yang dapat ditinjau sebelum dikirim.
+- Inbox WhatsApp: percakapan Cloud API, kirim pesan teks dan template Meta yang disetujui, balasan cepat, serta aturan balasan otomatis berbasis kata kunci.
 - WhatsApp Rotator: link round-robin ke nomor WhatsApp; hitungan klik dan parameter UTM masuk ke Event logs tanpa menyimpan IP.
 - Integrasi iklan: metadata akun, event mapping, UTM, dan script tracker. OAuth dan sinkronisasi data iklan belum aktif.
 - Campaign report: biaya manual, lead, closing, revenue, ROAS, rentang tanggal, dan ekspor CSV.
