@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { pbkdf2 } from "node:crypto";
 
-type Env = { DB: D1Database; ASSETS: Fetcher; AUTH_RATE: RateLimit; TRACKER_RATE: RateLimit; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
+type Env = { DB: D1Database; ASSETS: Fetcher; AUTH_RATE: RateLimit; TRACKER_RATE: RateLimit; EMAIL?: SendEmail; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
 type Variables = { userId: string; workspaceId: string; workspace: { id: string; name: string; public_key: string; currency: string } };
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 const events = ["Visit LP", "Click CTA", "Masuk WA", "MQL", "Prospek", "Closing", "Isi Form"];
@@ -87,7 +87,7 @@ app.post("/api/auth/forgot-password", async c => {
   const email = body.email?.trim().toLowerCase() ?? "";
   const generic = { message: "Jika email terdaftar, tautan pengaturan kata sandi akan dikirim." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(c, generic);
-  if (!c.env.RESEND_API_KEY || !c.env.RESET_EMAIL_FROM || !c.env.APP_ORIGIN || !c.env.SESSION_SECRET) return json(c, { error: "Pemulihan email belum dikonfigurasi. Hubungi administrator." }, 503);
+  if ((!c.env.EMAIL && !c.env.RESEND_API_KEY) || !c.env.RESET_EMAIL_FROM || !c.env.APP_ORIGIN || !c.env.SESSION_SECRET) return json(c, { error: "Pemulihan email belum dikonfigurasi. Hubungi administrator." }, 503);
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
   const ipHash = await sign(ip, c.env.SESSION_SECRET);
   const bucket = Math.floor(Date.now() / 600_000);
@@ -104,18 +104,30 @@ app.post("/api/auth/forgot-password", async c => {
   await c.env.DB.prepare("UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND used_at IS NULL").bind(user.id).run();
   await c.env.DB.prepare("INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at) VALUES(?,?,?,datetime('now','+30 minutes'))").bind(id(), user.id, tokenHash).run();
   const resetUrl = `${c.env.APP_ORIGIN}/reset-password?token=${rawToken}`;
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: c.env.RESET_EMAIL_FROM,
-      to: [email],
-      subject: "Atur ulang kata sandi Arenka Ads Tracker",
-      text: `Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.\n\n${resetUrl}`,
-      html: `<p>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda.</p><p><a href="${resetUrl}">Atur kata sandi baru</a></p><p>Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.</p>`,
-    }),
-  }).catch(() => null);
-  if (!response?.ok) {
+  const emailContent = {
+    from: c.env.RESET_EMAIL_FROM,
+    to: email,
+    subject: "Atur ulang kata sandi Arenka Ads Tracker",
+    text: `Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.\n\n${resetUrl}`,
+    html: `<p>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda.</p><p><a href="${resetUrl}">Atur kata sandi baru</a></p><p>Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.</p>`,
+  };
+  let sent = false;
+  try {
+    if (c.env.EMAIL) {
+      await c.env.EMAIL.send(emailContent);
+      sent = true;
+    } else if (c.env.RESEND_API_KEY) {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...emailContent, to: [email] }),
+      });
+      sent = response.ok;
+    }
+  } catch (error) {
+    console.error("Password reset email delivery failed", error instanceof Error ? error.name : "unknown");
+  }
+  if (!sent) {
     await c.env.DB.prepare("UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=?").bind(tokenHash).run();
     return json(c, { error: "Email pemulihan belum dapat dikirim. Coba lagi nanti." }, 503);
   }
