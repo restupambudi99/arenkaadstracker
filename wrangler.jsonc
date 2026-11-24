@@ -22,6 +22,13 @@
   "send_email": [
     { "name": "EMAIL" }
   ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["no-reply@arenka.biz.id"],
+      "allowed_destination_addresses": ["restupambudi1991@gmail.com"]
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
