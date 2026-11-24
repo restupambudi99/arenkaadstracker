@@ -8,7 +8,7 @@ Dashboard atribusi iklan dan lead berbasis Cloudflare Workers + D1. Repo dimulai
 - Leads: pencarian, impor/ekspor CSV, status, tampilan Kanban, dan jadwal follow-up.
 - Lokasi leads: ringkasan event dan konversi berdasarkan wilayah.
 - Inbox WhatsApp: percakapan Cloud API, kirim pesan teks dan template Meta yang disetujui, balasan cepat, serta aturan balasan otomatis berbasis kata kunci.
-- WhatsApp Broadcast: catatan opt-in/opt-out dengan bukti audit, draft kampanye menggunakan template Meta yang disetujui, serta kirim batch maksimal lima kontak dengan pemeriksaan ulang persetujuan.
+- WhatsApp Broadcast: catatan opt-in/opt-out dengan bukti audit, draft kampanye kategori MARKETING menggunakan template Meta yang disetujui, serta pengiriman batch maksimal lima kontak dengan pemeriksaan ulang persetujuan.
 - WhatsApp Rotator: link round-robin ke nomor WhatsApp; hitungan klik dan parameter UTM masuk ke Event logs tanpa menyimpan IP.
 - Integrasi iklan: metadata akun, event mapping, UTM, dan script tracker. OAuth dan sinkronisasi data iklan belum aktif.
 - Campaign report: biaya manual, lead, closing, revenue, ROAS, rentang tanggal, dan ekspor CSV.
@@ -74,4 +74,4 @@ OAuth dan sinkronisasi biaya live belum tersedia. Halaman Integrasi menyebut sta
 
 Pemilik situs bertanggung jawab memberi pemberitahuan kepada pengunjung dan mengatur persetujuan tracking sesuai aturan yang berlaku. Payload event dibatasi, dan endpoint tidak menerima access token iklan.
 
-Untuk WhatsApp Broadcast, impor kontak tidak berarti penerima menyetujui pemasaran. Catat persetujuan dan sumber bukti yang benar, serta segera catat pencabutan. Kampanye hanya dapat dibuat dari penerima dengan status persetujuan terakhir aktif dan template Meta `APPROVED`; setiap batch memeriksa status itu lagi sebelum pengiriman.
+Untuk WhatsApp Broadcast, impor kontak tidak berarti penerima menyetujui pemasaran. Catat persetujuan dan sumber bukti yang benar, serta segera catat pencabutan. Kampanye hanya dapat dibuat dari penerima dengan status persetujuan terakhir aktif dan template kategori `MARKETING` berstatus Meta `APPROVED`; setiap batch memeriksa status itu lagi sebelum pengiriman.
