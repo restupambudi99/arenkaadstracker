@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { pbkdf2 } from "node:crypto";
 
-type Env = { DB: D1Database; ASSETS: Fetcher; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
+type Env = { DB: D1Database; ASSETS: Fetcher; AUTH_RATE: RateLimit; TRACKER_RATE: RateLimit; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
 type Variables = { userId: string; workspaceId: string; workspace: { id: string; name: string; public_key: string; currency: string } };
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 const events = ["Visit LP", "Click CTA", "Masuk WA", "MQL", "Prospek", "Closing", "Isi Form"];
@@ -48,6 +48,7 @@ app.post("/api/auth/register", async c => {
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 128) return json(c, { error: "Gunakan email valid dan kata sandi minimal 12 karakter." }, 400);
+  if (!(await c.env.AUTH_RATE.limit({ key: c.req.header("CF-Connecting-IP") ?? "unknown" })).success) return json(c, { error: "Terlalu banyak permintaan akun. Coba lagi sebentar." }, 429);
   const userId = id(), salt = crypto.getRandomValues(new Uint8Array(16)), publicKey = crypto.randomUUID().replaceAll("-", "");
   try {
     await c.env.DB.batch([
@@ -64,6 +65,7 @@ app.post("/api/auth/register", async c => {
 
 app.post("/api/auth/login", async c => {
   const body = await c.req.json<{ email?: string; password?: string }>().catch(() => ({} as { email?: string; password?: string }));
+  if (!(await c.env.AUTH_RATE.limit({ key: c.req.header("CF-Connecting-IP") ?? "unknown" })).success) return json(c, { error: "Terlalu banyak percobaan masuk. Coba lagi sebentar." }, 429);
   const row = await c.env.DB.prepare("SELECT id,password_hash,session_version FROM users WHERE email=?").bind(body.email?.trim().toLowerCase() ?? "").first<{ id: string; password_hash: string; session_version: number }>();
   if (!row) return json(c, { error: "Email atau kata sandi tidak cocok." }, 401);
   let matches = false;
@@ -124,6 +126,7 @@ app.post("/api/auth/reset-password", async c => {
   const body = await c.req.json<{ token?: string; password?: string }>().catch(() => ({} as { token?: string; password?: string }));
   const token = body.token ?? "", password = body.password ?? "";
   if (!/^[A-Za-z0-9_-]{40,50}$/.test(token) || password.length < 12 || password.length > 128) return json(c, { error: "Tautan tidak valid atau kata sandi belum memenuhi syarat." }, 400);
+  if (!(await c.env.AUTH_RATE.limit({ key: c.req.header("CF-Connecting-IP") ?? "unknown" })).success) return json(c, { error: "Terlalu banyak permintaan akun. Coba lagi sebentar." }, 429);
   const tokenHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))), b => b.toString(16).padStart(2, "0")).join("");
   const consumedKey = id();
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -374,6 +377,7 @@ app.options("/t/:key", c=>new Response(null,{status:204,headers:{"Access-Control
 app.post("/t/:key",async c=>{
   const workspace=await c.env.DB.prepare("SELECT id FROM workspaces WHERE public_key=?").bind(c.req.param("key")).first<{id:string}>();
   if(!workspace)return new Response(null,{status:404,headers:{"Access-Control-Allow-Origin":"*"}});
+  const ip=c.req.header("CF-Connecting-IP")??"unknown";if(!(await c.env.TRACKER_RATE.limit({key:`${workspace.id}:${ip}`})).success)return new Response(null,{status:429,headers:{"Access-Control-Allow-Origin":"*","Retry-After":"60"}});
   const origin=c.req.header("Origin");if(origin){const domains=await c.env.DB.prepare("SELECT hostname FROM custom_domains WHERE workspace_id=?").bind(workspace.id).all<{hostname:string}>();if(domains.results.length){let hostname="";try{hostname=new URL(origin).hostname.toLowerCase()}catch{return new Response(null,{status:403,headers:{"Access-Control-Allow-Origin":"null"}})}if(!domains.results.some(row=>row.hostname===hostname||hostname.endsWith(`.${row.hostname}`)))return new Response(null,{status:403,headers:{"Access-Control-Allow-Origin":"null"}})}}
   const raw=await c.req.text();
   if(new TextEncoder().encode(raw).byteLength>8192)return new Response(null,{status:413,headers:{"Access-Control-Allow-Origin":"*"}});
