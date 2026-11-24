@@ -477,6 +477,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .landing-publish-toggle { display:flex!important; align-items:center; gap:9px!important; color:#53635b!important; }
 .landing-publish-toggle input { width:15px; height:15px; accent-color:#205c54; }
 .landing-body-input { min-height:130px!important; }
+.workspace-key { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:17px 0 9px; padding:7px 9px; border:1px solid #e4ebe6; border-radius:7px; background:#f8faf8; }
+.workspace-key code { overflow:hidden; color:#436a5e; font:10px "IBM Plex Mono",monospace; text-overflow:ellipsis; }
+.wa-guide-card>small { color:#8a958e; font-size:9px; line-height:1.5; }
 @media(max-width:620px) { .form-grid-two { grid-template-columns:1fr; } }
 .audience-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; margin-bottom:13px; }
 .audience-summary>section { display:grid; gap:10px; min-height:83px; padding:14px 16px; box-shadow:0 1px 1px #182b2410; }
