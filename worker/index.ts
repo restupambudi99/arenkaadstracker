@@ -112,20 +112,25 @@ app.post("/api/auth/forgot-password", async c => {
     html: `<p>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda.</p><p><a href="${resetUrl}">Atur kata sandi baru</a></p><p>Tautan berlaku selama 30 menit dan hanya dapat digunakan sekali. Jika Anda tidak meminta ini, abaikan email ini.</p>`,
   };
   let sent = false;
-  try {
-    if (c.env.EMAIL) {
+  if (c.env.EMAIL) {
+    try {
       await c.env.EMAIL.send(emailContent);
       sent = true;
-    } else if (c.env.RESEND_API_KEY) {
+    } catch (error) {
+      console.error("Cloudflare reset email delivery failed", error instanceof Error ? error.name : "unknown");
+    }
+  }
+  if (!sent && c.env.RESEND_API_KEY) {
+    try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ ...emailContent, to: [email] }),
       });
       sent = response.ok;
+    } catch (error) {
+      console.error("Resend reset email delivery failed", error instanceof Error ? error.name : "unknown");
     }
-  } catch (error) {
-    console.error("Password reset email delivery failed", error instanceof Error ? error.name : "unknown");
   }
   if (!sent) {
     await c.env.DB.prepare("UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=?").bind(tokenHash).run();
