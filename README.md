@@ -37,14 +37,13 @@ npm run dev
 
 ### Email reset kata sandi
 
-Reset kata sandi memakai Resend. Verifikasi domain pengirim di Resend, buat API key khusus untuk email, lalu pasang rahasia Worker tanpa memasukkannya ke repository:
+Reset kata sandi memakai binding Cloudflare Email Sending bila tersedia, dengan Resend sebagai fallback. Untuk Cloudflare, aktifkan Email Sending pada domain pengirim melalui dashboard dan gunakan paket Workers berbayar untuk mengirim ke alamat penerima eksternal. Setelah domain siap, pasang binding `EMAIL` di konfigurasi Worker serta alamat pengirim:
 
 ```powershell
-npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put RESET_EMAIL_FROM
 ```
 
-Nilai `RESET_EMAIL_FROM` harus berupa alamat pada domain yang sudah diverifikasi, misalnya `Arenka Ads <no-reply@arenka.biz.id>`. Gunakan alamat sebenarnya yang diizinkan oleh domain Resend Anda. Migration `0003_password_reset.sql` membuat penyimpanan token dan pembatasan permintaan. Tautan reset berlaku 30 menit, sekali pakai; reset membatalkan sesi lama.
+Nilai `RESET_EMAIL_FROM` harus berupa alamat pada domain yang sudah di-onboard ke Cloudflare Email Sending, misalnya `no-reply@arenka.biz.id`. Untuk memakai Resend sebagai fallback, konfigurasi `RESEND_API_KEY` dan alamat pengirim yang diverifikasi di Resend. Migration `0003_password_reset.sql` membuat penyimpanan token dan pembatasan permintaan. Tautan reset berlaku 30 menit, sekali pakai; reset membatalkan sesi lama.
 
 ## Memasang tracker
 
