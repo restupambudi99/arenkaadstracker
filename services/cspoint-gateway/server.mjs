@@ -18,6 +18,15 @@ db.exec('CREATE TABLE IF NOT EXISTS arenka_identity(id INTEGER PRIMARY KEY CHECK
 db.prepare('INSERT OR IGNORE INTO arenka_identity VALUES(1,?)').run(workspace);
 if(db.prepare('SELECT workspace FROM arenka_identity WHERE id=1').get().workspace!==workspace) throw new Error('DATA_DIR belongs to another workspace. Use a separate empty directory.');
 const logger=pino({level:'silent'});
+async function reportIncomingLead(number,jid,message) {
+  const digits=String(jid||'').split('@')[0].replace(/\D/g,'');
+  if(digits.length<7||digits.length>16)return;
+  const context=message.message?.extendedTextMessage?.contextInfo||message.message?.imageMessage?.contextInfo||message.message?.videoMessage?.contextInfo||{};
+  const ad=context.externalAdReply||{};
+  const clid=String(context.ctwaClid||context.ctwa_clid||ad.ctwaClid||ad.ctwa_clid||'').trim().slice(0,500);
+  const response=await fetch(`${origin.replace(/\/$/,'')}/cspoint-bridge/${encodeURIComponent(workspace)}/lead`,{method:'POST',redirect:'error',signal:AbortSignal.timeout(8000),headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({name:String(message.pushName||digits).slice(0,120),phone:digits,ctwa_clid:clid||null})});
+  if(!response.ok)throw new Error(`Arenka lead endpoint status ${response.status}`);
+}
 async function sendText(number,jid,text,source) {
   const messageId=generateMessageIDV2(number.socket.user?.id);
   messages.registerOutbound(messageId,jid,number.id,source);
@@ -41,6 +50,7 @@ const numbers=await openNumbers({sessionDir:join(data,'session'),makeSocket:auth
       const source=outgoing?messages.outboundSource(message.key.id,jid,number.id):'unknown';
       const saved={id:message.key.id,jid,text:text.slice(0,4000),name:message.pushName||'',outgoing,status:message.status,timestamp,instance:number.id,source:source||'unknown'};
       const fresh=messages.add(saved);
+      if(fresh&&!outgoing&&Math.abs(Date.now()-timestamp)<120000)void reportIncomingLead(number,jid,message).catch(error=>console.warn('Incoming lead sync failed',error instanceof Error?error.name:'unknown'));
       if(outgoing&&source!=='ai'&&Math.abs(Date.now()-timestamp)<120000)state.pause(number.id,jid,true);
       if(fresh&&!outgoing&&!numbers.owns(jid)&&Math.abs(Date.now()-timestamp)<120000)void respond(number,current,saved);
     }

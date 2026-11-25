@@ -14,6 +14,7 @@ type Settings = {router_url: string; model: string; api_key_cipher: string; gate
 type Row = {id: string; name: string; data: string; created_at: string; updated_at: string};
 type ThreadItem = {id: string; text: string; outgoing: boolean; source?: string};
 type Cipher = {encrypt: (value:string,secret:string)=>Promise<string>; decrypt:(value:string,secret:string)=>Promise<string>};
+type QrLeadInput = {name:string;phone:string;ctwa_clid:string|null};
 const defaults: Settings = {router_url:'',model:'Hermesollama',api_key_cipher:'',gateway_url:'',gateway_token_cipher:''};
 const meta = (row: Row, full = false) => {
   const data = JSON.parse(row.data);
@@ -88,7 +89,7 @@ function errorHandler(error: Error, c: C) {
   return c.json({error:error instanceof HTTPException?error.message:'Modul CSPoint gagal memproses permintaan.'},error instanceof HTTPException?error.status:500);
 }
 
-export function createCsPoint(cipher: Cipher) {
+export function createCsPoint(cipher: Cipher, onQrLead:(context:any,workspace:string,input:QrLeadInput)=>Promise<{id:string;created:boolean}> = async()=>{throw new HTTPException(503,{message:'Penerimaan lead WhatsApp belum tersedia.'})}) {
   const api = new Hono<{Bindings:Bindings;Variables:Variables}>();
   const bridge = new Hono<{Bindings:Bindings;Variables:Variables}>();
   api.onError(errorHandler);
@@ -187,6 +188,19 @@ export function createCsPoint(cipher: Cipher) {
   api.notFound(c=>c.json({error:'Endpoint CSPoint tidak ditemukan.'},404));
 
   bridge.use('*',bodyLimit({maxSize:150000,onError:c=>c.json({error:'Data terlalu besar.'},413)}));
+  bridge.post('/:workspace/lead',async c=>{
+    const workspace=c.req.param('workspace'),config=await settings(c,workspace),provided=c.req.header('Authorization')?.replace(/^Bearer /,'')??'';
+    if(!config.gateway_token_cipher||!provided)return c.json({error:'Tidak diizinkan.'},401);
+    const expected=await cipher.decrypt(config.gateway_token_cipher,secret(c)),digest=async(value:string)=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),[a,b]=await Promise.all([digest(expected),digest(provided)]);
+    if(a.some((value,i)=>value!==b[i]))return c.json({error:'Tidak diizinkan.'},401);
+    if(!(await c.env.AUTH_RATE.limit({key:`cs-lead:${workspace}`})).success)return c.json({error:'Batas permintaan tercapai.'},429);
+    const input=await body(c),name=text(input.name,120,'Nama'),rawPhone=text(input.phone,30,'Nomor WhatsApp',true).replace(/[ +()-]/g,''),phone=rawPhone.startsWith('0')?'62'+rawPhone.slice(1):rawPhone;
+    if(!/^[1-9]\d{7,14}$/.test(phone))throw new HTTPException(400,{message:'Nomor WhatsApp tidak valid.'});
+    const ctwa=text(input.ctwa_clid,500,'ctwa_clid');
+    if(ctwa&&(ctwa.length>500||/[\u0000-\u001f\u007f]/.test(ctwa)))throw new HTTPException(400,{message:'ctwa_clid tidak valid.'});
+    const result=await onQrLead(c,workspace,{name,phone,ctwa_clid:ctwa||null});
+    return c.json(result,result.created?201:200);
+  });
   bridge.post('/:workspace/reply',async c=>{
     const workspace=c.req.param('workspace'),config=await settings(c,workspace),provided=c.req.header('Authorization')?.replace(/^Bearer /,'')??'';
     if (!config.gateway_token_cipher || !provided) return c.json({error:'Tidak diizinkan.'},401);

@@ -20,9 +20,10 @@ function fixture() {
   });
   const env={DB:{prepare,batch:async statements=>Promise.all(statements.map(s=>s.run()))},SESSION_SECRET:'isolated-test-secret-never-used-in-production',AUTH_RATE:{limit:async()=>({success:true})},TRACKER_RATE:{limit:async()=>({success:true})},ASSETS:{fetch:async()=>new Response('fixture asset')}};
   const cookie=id=>{const payload=Buffer.from(JSON.stringify({sub:id,ver:0,exp:Date.now()+60000})).toString('base64url');return 'arenka_session='+payload+'.'+createHmac('sha256',env.SESSION_SECRET).update(payload).digest('base64url');};
-  const request=(path,{user='a',method='GET',body,headers={}}={})=>app.fetch(new Request('https://arenka.test'+path,{method,headers:{...(user?{Cookie:cookie(user)}:{}),'Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),env,{waitUntil(){}});
+  const pending=[];
+  const request=(path,{user='a',method='GET',body,headers={}}={})=>app.fetch(new Request('https://arenka.test'+path,{method,headers:{...(user?{Cookie:cookie(user)}:{}),'Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),env,{waitUntil(promise){pending.push(promise)}});
   const cs=(path,options)=>request('/api/cspoint'+path,options);
-  return {sqlite,request,cs};
+  return {sqlite,request,cs,pending};
 }
 test('new namespace retains Arenka session and origin protection',async()=>{
   const {sqlite,request,cs}=fixture();
@@ -88,4 +89,30 @@ test('AI test calls saved provider with workspace references only, never WhatsAp
     const response=await cs('/ai/test',{method:'POST',body:{instance:'default',prompt:'Halo'}});assert.equal(response.status,200,await response.clone().text());assert.equal(typeof (await response.json()).reply,'string');
     assert.ok(calls.length>0);assert.ok(calls.every(call=>call.url==='https://router.arenka.biz.id/v1/chat/completions'));assert.ok(!calls[0].options.body.includes('PRIVATE-WORKSPACE-B'));assert.equal(calls[0].options.redirect,'manual');
   } finally {globalThis.fetch=original;sqlite.close();}
+});
+test('Meta CAPI consent, secret masking, workspace isolation and Closing event are enforced',async()=>{
+  const {sqlite,request,pending}=fixture();
+  const rejected=await request('/api/meta-capi/settings',{method:'PUT',body:{pixel_id:'123456789',access_token:'fixture-meta-secret',auto_purchase:true,consent:false}});
+  assert.equal(rejected.status,400);
+  const saved=await request('/api/meta-capi/settings',{method:'PUT',body:{pixel_id:'123456789',access_token:'fixture-meta-secret',test_event_code:'TEST1',auto_purchase:true,consent:true}});
+  assert.equal(saved.status,200);assert.equal((await saved.json()).has_access_token,true);
+  const shown=await request('/api/meta-capi/settings'),shownText=await shown.text();assert.equal(JSON.parse(shownText).has_access_token,true);assert.ok(!shownText.includes('fixture-meta-secret'));
+  assert.equal((await (await request('/api/meta-capi/settings',{user:'b'})).json()).has_access_token,false);
+  const priorFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json({events_received:1,fbtrace_id:'fixture-trace'});
+  const lead=await request('/api/leads',{method:'POST',body:{name:'Test Closing',email:'closing@example.invalid',status:'Closing',value:85000}});assert.equal(lead.status,201);await Promise.all(pending);
+  const event=sqlite.prepare("SELECT event_name,status,workspace_id,payload FROM meta_capi_events").get();assert.equal(event.event_name,'Purchase');assert.equal(event.status,'sent');assert.equal(event.workspace_id,'a');assert.ok(!event.payload.includes('closing@example.invalid'));
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM meta_capi_events WHERE workspace_id=?').get('b').n,0);
+  globalThis.fetch=priorFetch;sqlite.close();
+});
+test('CSPoint QR bridge creates an idempotent lead and stores only within authorized workspace',async()=>{
+  const {sqlite,request,cs}=fixture(),token='fixture-gateway-token-long-enough';
+  const gatewaySettings=await cs('/settings',{method:'PUT',body:{gateway_url:'https://wa.arenka.biz.id',gateway_token:token}});assert.equal(gatewaySettings.status,200);assert.equal((await gatewaySettings.json()).has_gateway_token,true);
+  const response=await request('/cspoint-bridge/a/lead',{user:null,method:'POST',headers:{Authorization:'Bearer '+token},body:{name:'QR Test',phone:'628123456789',ctwa_clid:'clid-123'}});
+  assert.equal(response.status,201,await response.clone().text());
+  const created=await response.json();assert.equal(created.created,true);
+  const duplicate=await request('/cspoint-bridge/a/lead',{user:null,method:'POST',headers:{Authorization:'Bearer '+token},body:{name:'QR Test',phone:'628123456789'}});assert.equal(duplicate.status,200);assert.equal((await duplicate.json()).created,false);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM leads WHERE workspace_id=?').get('a').n,1);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM leads WHERE workspace_id=?').get('b').n,0);
+  assert.equal(sqlite.prepare('SELECT ctwa_clid FROM leads WHERE workspace_id=?').get('a').ctwa_clid,'clid-123');
+  assert.equal((await request('/cspoint-bridge/b/lead',{user:null,method:'POST',headers:{Authorization:'Bearer '+token},body:{name:'Cross',phone:'628123456789'}})).status,401);
+  sqlite.close();
 });
