@@ -53,7 +53,7 @@ export default function App() {
 
   const currentNav = navGroups.flatMap(group => group.items).find(item => item.path === route) ?? navGroups.flatMap(group => group.items).find(item => item.path !== "/" && route.startsWith(`${item.path}/`));
   const section = currentNav?.title ?? (route === "/" ? "Ringkasan" : "Workspace");
-  return <div className="app-shell">
+  return <div className={`app-shell ${route === "/offline-tracking" ? "analyzer-shell" : ""}`}>
     <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
       <div className="brand"><div className="brand-mark">a</div><div><div className="brand-name">arenka<span>ads</span></div><div className="brand-caption">ATTRIBUTION WORKSPACE</div></div><button className="mobile-close icon-button" aria-label="Tutup menu" onClick={() => setMenuOpen(false)}><X size={18}/></button></div>
       <div className="workspace-picker"><span className="workspace-avatar">{workspace.name.slice(0,1).toUpperCase()}</span><span className="workspace-meta"><b>{workspace.name}</b><small>Workspace</small></span></div>
