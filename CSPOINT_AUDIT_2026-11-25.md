@@ -56,6 +56,17 @@ Hapus data diverifikasi melalui test API. Konfirmasi/cancel UI mengikuti dialog 
 - Scheduler FU, Form Builder penuh, OCR, media, dan impor massal tidak dihadirkan sebagai fungsi yang sudah siap.
 - UI memakai tema Arenka yang sudah ada sesuai arahan pemilik. Tidak ada tema baru, perubahan login, atau penggantian dashboard.
 
+## Verifikasi produksi
+
+- Commit implementasi: `f511dd8f70c6d1485f87b312122bc491ea90c3f7`, sudah dipush ke `main` GitHub.
+- Migration `0019_cspoint.sql` berhasil diterapkan pada D1 remote; hanya satu migration baru yang menunggu saat pemeriksaan.
+- Worker `arenka-ads-tracker` diterbitkan pada `trackers.arenka.biz.id`, version `ee284eef-28ef-4651-b1c5-7fc7fe75e5fe`.
+- GET `/cspoint/products` = 200 dan memuat hash build yang sama dengan hasil build lokal; bundle CSPoint = 200.
+- GET `/api/cspoint/records/products` dan `/api/me` tanpa sesi = 401; `/tracker.js` tetap 200.
+- Pemeriksaan browser produksi menampilkan halaman login Arenka yang sudah ada. Pengujian CRUD terautentikasi dilakukan lokal, bukan pada akun produksi.
+- Hitungan users, workspaces, leads, events dan wa_messages sama sebelum/sesudah migrasi. Tabel CSPoint produksi masih kosong; tidak ada data QA atau kredensial provider yang dipindahkan ke produksi.
+- Pemeriksaan console pada reload build final lokal dan buka/tutup dialog tidak menemukan exception atau console error.
+
 ## Catatan untuk agent berikutnya
 
 Periksa status aktual gateway dan provider melalui Pengaturan CSPoint sebelum menyatakan QR/AI aktif. Jangan memakai akun/password bawaan atau bypass login. Jangan menggunakan sesi WhatsApp lama untuk menguji integrasi. Jalankan pemeriksaan migrasi remote sebelum menambahkan migration baru. Semua perubahan lanjutan harus dicatat ke GitHub sesuai permintaan pemilik.
