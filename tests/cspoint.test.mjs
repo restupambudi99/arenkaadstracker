@@ -25,6 +25,21 @@ function fixture() {
   const cs=(path,options)=>request('/api/cspoint'+path,options);
   return {sqlite,request,cs,pending};
 }
+test('Offline Tracking imports daily Meta metrics and enforces workspace boundaries',async()=>{
+  const {sqlite,request}=fixture();
+  const digest='a'.repeat(64),report={title:'CTWA November',file_name:'meta.csv',file_digest:digest,goal:'ctwa',currency:'IDR',target_cost_per_result:15000,date_from:'2026-11-01',date_to:'2026-11-02',rows:[{day:'2026-11-01',campaign:'Campaign A',adset:'Broad',ad_name:'Video',spend:300000,impressions:10000,reach:8000,frequency:1.25,link_clicks:120,results:20}]};
+  assert.equal((await request('/api/offline-tracking/reports',{user:null})).status,401);
+  const created=await request('/api/offline-tracking/reports',{method:'POST',body:report});assert.equal(created.status,201,await created.clone().text());const id=(await created.json()).id;
+  assert.equal((await request('/api/offline-tracking/reports',{method:'POST',body:report})).status,409);
+  const list=await (await request('/api/offline-tracking/reports')).json();assert.equal(list.length,1);assert.equal(list[0].spend,300000);
+  assert.equal((await (await request('/api/offline-tracking/reports',{user:'b'})).json()).length,0);
+  assert.equal((await request('/api/offline-tracking/reports/'+id,{user:'b'})).status,404);
+  assert.equal((await request('/api/offline-tracking/reports',{method:'POST',body:{...report,file_digest:'b'.repeat(64),rows:[{...report.rows[0],day:'2026-02-30'}]}})).status,400);
+  assert.equal((await request('/api/offline-tracking/reports/'+id,{method:'DELETE',user:'b'})).status,404);
+  assert.equal((await request('/api/offline-tracking/reports/'+id,{method:'DELETE'})).status,200);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM offline_tracking_rows').get().n,0);
+  sqlite.close();
+});
 test('new namespace retains Arenka session and origin protection',async()=>{
   const {sqlite,request,cs}=fixture();
   assert.equal((await cs('/records/products',{user:null})).status,401);

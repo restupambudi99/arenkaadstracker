@@ -1,0 +1,132 @@
+%PDF-1.4
+%ARENA
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+3 0 obj
+<< /Length 4975 >>
+stream
+0.11 0.27 0.24 rg 0 0 595 842 re f
+0.96 0.97 0.95 rg 34 30 527 782 re f
+0.13 0.34 0.30 rg 56 738 34 34 re f
+BT /F2 20 Tf 0.98 0.98 0.94 rg 64 747 Td (a) Tj ET
+BT /F2 13 Tf 0.11 0.17 0.15 rg 102 754 Td (arenka) Tj ET
+BT /F1 7 Tf 0.37 0.46 0.42 rg 102 742 Td (ADS TRACKER / PANDUAN OFFLINE) Tj ET
+0.84 0.63 0.29 rg 56 722 483 1 re f
+BT /F2 18 Tf 0.11 0.27 0.24 rg 58 700 Td (Panduan Offline Tracking Arenka) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 666 Td (Panduan ini menjelaskan cara mengimpor laporan kinerja iklan Meta ke menu Offline) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 652 Td (Tracking di Arenka Ads Tracker. Fitur ini membaca file export yang dipilih dan membuat) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 638 Td (analisis historis. Proses ini terpisah dari pixel dan Conversions API: data import tidak) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 624 Td (mengirim event kembali ke Meta.) Tj ET
+BT /F2 11 Tf 0.13 0.34 0.30 rg 58 602 Td (1. Siapkan laporan dari Meta Ads Manager) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 576 Td (1. Buka Ads Manager dan pilih akun iklan serta rentang tanggal yang ingin dianalisis.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 562 Td (2. Pilih tab Iklan \(Ads\) untuk mendapatkan rincian sampai nama iklan. Pastikan Anda) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 548 Td (menggunakan tampilan kolom yang memuat metrik performa.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 534 Td (3. Pilih Breakdown / Perincian - By time - Day agar setiap baris mewakili satu hari.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 520 Td (Hindari menggabungkan beberapa rentang atau tujuan hasil yang berbeda dalam satu laporan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 506 Td (4. Ekspor sebagai CSV atau XLSX. Gunakan kolom yang setara dengan Day, Campaign) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 492 Td (name, Amount spent, Impressions, dan Results. Ad set, Ad name, Reach, Frequency, Link) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 478 Td (clicks, video plays, budget, objective, delivery, serta quality ranking dapat disertakan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 464 Td (sebagai rincian tambahan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 450 Td (5. Simpan file secara lokal. File akan dibaca pada browser dan tidak diunggah sebagai file) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 436 Td (mentah.) Tj ET
+BT /F2 11 Tf 0.13 0.34 0.30 rg 58 414 Td (2. Impor di Arenka) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 388 Td (1. Buka Workspace - Offline Tracking, lalu pilih Upload laporan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 374 Td (2. Pilih file CSV/XLSX atau tarik file ke area impor. Batas ukuran file 12 MB dan maksimal) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 360 Td (5.000 baris data per laporan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 346 Td (3. Periksa pemetaan kolom. Arenka mencoba mencocokkan judul kolom; pilih sendiri kolom) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 332 Td (tanggal, campaign, biaya, impressions, dan results bila belum cocok. Kolom lain bersifat) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 318 Td (opsional.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 304 Td (4. Pilih tujuan yang paling sesuai: Click to WhatsApp, landing page ke WhatsApp, instant) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 290 Td (form, form website, penjualan website, atau CPAS. Pisahkan laporan ketika metrik Results) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 276 Td (mewakili tujuan yang berbeda.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 262 Td (5. Pilih mata uang serta format angka/tanggal. Tinjau rentang tanggal dan ringkasan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 248 Td (biaya/hasil sebelum menyimpan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 234 Td (6. Secara opsional isi target biaya per hasil. Untuk proyeksi penjualan, isi asumsi laba dan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 220 Td (persentase closing. Proyeksi tersebut hanya perkiraan dari asumsi Anda.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 206 Td (7. Pilih Simpan. Metrik terpilih disimpan sebagai baris laporan pada workspace aktif.) Tj ET
+BT /F2 11 Tf 0.13 0.34 0.30 rg 58 184 Td (3. Baca analisis) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 158 Td (Pilih laporan untuk melihat KPI biaya, hasil, biaya per hasil, CTR link, ringkasan periode,) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 144 Td (tren harian, alur impressions-ke-klik-ke-hasil, serta rincian campaign, ad set, iklan, dan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 130 Td (breakdown yang tersedia. Gunakan pilihan mingguan/bulanan/rentang, bandingkan periode) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 116 Td (sebelumnya, atau filter campaign. Ekspor CSV mengunduh baris yang sedang difilter;) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 102 Td (Cetak report membuka dialog cetak browser untuk menyimpan atau mencetak ringkasan.) Tj ET
+0.45 0.52 0.49 rg 58 55 480 0.5 re f
+BT /F1 7 Tf 0.45 0.52 0.49 rg 58 41 Td (Arenka Ads Tracker  -  Panduan Offline Tracking) Tj ET
+BT /F1 7 Tf 0.45 0.52 0.49 rg 506 41 Td (1 / 2) Tj ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 7 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+5 0 obj
+<< /Length 3781 >>
+stream
+0.11 0.27 0.24 rg 0 0 595 842 re f
+0.96 0.97 0.95 rg 34 30 527 782 re f
+0.13 0.34 0.30 rg 56 738 34 34 re f
+BT /F2 20 Tf 0.98 0.98 0.94 rg 64 747 Td (a) Tj ET
+BT /F2 13 Tf 0.11 0.17 0.15 rg 102 754 Td (arenka) Tj ET
+BT /F1 7 Tf 0.37 0.46 0.42 rg 102 742 Td (ADS TRACKER / PANDUAN OFFLINE) Tj ET
+0.84 0.63 0.29 rg 56 722 483 1 re f
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 700 Td (Biaya per hasil adalah total biaya dibagi total hasil. CTR link adalah link clicks dibagi) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 686 Td (impressions. Periksa definisi kolom Results pada export Anda karena definisinya mengikuti) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 672 Td (tujuan dan pengaturan atribusi Meta. Bila export tidak menyediakan suatu kolom, analisis) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 658 Td (menandainya sebagai tidak tersedia. Hasil ini bersumber dari file yang diimpor, bukan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 644 Td (sinkronisasi langsung akun iklan.) Tj ET
+BT /F2 11 Tf 0.13 0.34 0.30 rg 58 622 Td (4. Data, privasi, dan pengelolaan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 596 Td (Arenka memproses file di browser dan mengirim metrik yang sudah dipetakan untuk disimpan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 582 Td (dalam workspace. Nama file, rentang, tujuan, serta nilai metrik dicatat agar laporan bisa) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 568 Td (ditinjau kembali. Laporan dibatasi pada workspace aktif. Hindari memasukkan data pribadi) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 554 Td (pelanggan ke kolom tambahan atau nama file. Hapus laporan melalui ikon hapus bila tidak) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 540 Td (diperlukan lagi; penghapusan menghapus baris metrik terkait.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 518 Td (Impor tidak mengubah akun Meta, tidak memasang pixel, dan tidak mengirim data ke Conversions) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 504 Td (API. Atur pixel/CAPI secara terpisah di menu Meta Conversions API. Gunakan data sesuai) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 490 Td (pemberitahuan privasi dan hak akses akun iklan Anda.) Tj ET
+BT /F2 11 Tf 0.13 0.34 0.30 rg 58 468 Td (Pemecahan masalah) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 442 Td (- Header tidak ditemukan: pastikan file berasal dari Ads Manager dan berisi kolom) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 428 Td (tanggal, campaign, biaya, impressions, dan results.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 414 Td (- Sebagian baris terlewat: periksa tanggal dan nama campaign; pilih format tanggal/angka) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 400 Td (yang sesuai lalu cek pemetaan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 386 Td (- Angka berubah skala: pilih format Indonesia untuk 1.234,56 atau English untuk) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 372 Td (1,234.56.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 358 Td (- File terlalu besar: batasi tanggal atau pecah export agar maksimal 5.000 baris pada) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 344 Td (setiap laporan.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 330 Td (- File sudah pernah diimpor: setiap file hanya dapat disimpan satu kali per workspace;) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 316 Td (pilih export yang diperbarui dan simpan sebagai file baru.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 302 Td (- Nilai Results tidak sebanding: buat laporan terpisah untuk setiap tujuan konversi dan) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 288 Td (periksa definisi metrik di Ads Manager.) Tj ET
+BT /F1 8.4 Tf 0.20 0.24 0.22 rg 58 266 Td (Arenka Ads Tracker - Panduan Offline Tracking - Versi 1) Tj ET
+0.45 0.52 0.49 rg 58 55 480 0.5 re f
+BT /F1 7 Tf 0.45 0.52 0.49 rg 58 41 Td (Arenka Ads Tracker  -  Panduan Offline Tracking) Tj ET
+BT /F1 7 Tf 0.45 0.52 0.49 rg 506 41 Td (2 / 2) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 7 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R] /Count 2 >>
+endobj
+8 0 obj
+<< /Type /Catalog /Pages 7 0 R >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000016 00000 n 
+0000000113 00000 n 
+0000000215 00000 n 
+0000005242 00000 n 
+0000005378 00000 n 
+0000009211 00000 n 
+0000009347 00000 n 
+0000009410 00000 n 
+trailer
+<< /Size 9 /Root 8 0 R >>
+startxref
+9459
+%%EOF

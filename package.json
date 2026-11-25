@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:cspoint": "node --test tests/cspoint.test.mjs tests/meta-capi.test.mjs shared/cspoint/*.test.mjs services/cspoint-gateway/test/*.test.mjs",
+    "test:offline": "node --test tests/offline-tracking.test.mjs tests/cspoint.test.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
