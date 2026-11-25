@@ -32,3 +32,9 @@ Ruang lingkup: navigasi, tombol menu lintas modul, kontak dan leads, template fo
 - Halaman produk menjadi katalog bersama untuk penggunaan agent. Belum ada form pemesanan publik yang menghasilkan pesanan.
 
 Data QA berada pada penyimpanan lokal dan tidak dipakai untuk mengubah data workspace produksi.
+
+## Rilis
+
+- GitHub `main`: commit audit `ead3dcd`.
+- Cloudflare Worker `arenka-ads-tracker`: versi `4ac8bb40-bf61-4b49-9cf5-17e2b8f9a8f6` pada `trackers.arenka.biz.id`.
+- Smoke check publik: `/` dan `/cspoint/products` mengembalikan 200; asset aplikasi mengembalikan 200; `/api/me` dan data CSPoint tanpa sesi mengembalikan 401 sebagaimana mestinya.
