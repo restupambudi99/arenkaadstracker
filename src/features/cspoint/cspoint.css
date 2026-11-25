@@ -3,6 +3,7 @@
 .cs-heading h1 { font-size:26px; font-weight:650; line-height:1.25; letter-spacing:-.6px; }
 .cs-module p { color:var(--muted-foreground); font-size:14px; line-height:1.65; }
 .cs-heading p { margin-top:7px; max-width:680px; }
+.cs-heading .cs-crosslink { margin-top:5px; color:var(--muted-foreground); font-size:12px; }
 .cs-module h2,.cs-dialog h2 { font-size:17px; font-weight:650; }
 .cs-module button,.cs-dialog button { min-height:44px; }
 .cs-toolbar { display:flex; align-items:center; gap:10px; margin:18px 0; flex-wrap:wrap; }

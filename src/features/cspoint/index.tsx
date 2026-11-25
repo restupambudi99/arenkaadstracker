@@ -8,6 +8,6 @@ export default function CsPoint({route,workspaceId,go}:{route:string;workspaceId
   if (page==='agent') return <AgentPage go={go}/>;
   if (page==='settings') return <SettingsPage workspaceId={workspaceId}/>;
   if (page==='whatsapp') return <WhatsAppPage go={go}/>;
-  if (['products','orders','contacts','templates','knowledge'].includes(page)) return <RecordsPage key={page} kind={page as RecordKind}/>;
+  if (['products','orders','contacts','templates','knowledge'].includes(page)) return <RecordsPage key={page} kind={page as RecordKind} go={go}/>;
   return <section className="cs-module"><h1>Halaman CSPoint tidak ditemukan</h1><button onClick={()=>go('/cspoint/products')}>Buka produk</button></section>;
 }
