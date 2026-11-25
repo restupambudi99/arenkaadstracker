@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { pbkdf2 } from "node:crypto";
+import { createCsPoint } from "./cspoint/index.ts";
 
 type Env = { DB: D1Database; ASSETS: Fetcher; AUTH_RATE: RateLimit; TRACKER_RATE: RateLimit; EMAIL?: SendEmail; APP_ORIGIN?: string; SESSION_SECRET?: string; RESEND_API_KEY?: string; RESET_EMAIL_FROM?: string };
 type Variables = { userId: string; workspaceId: string; workspace: { id: string; name: string; public_key: string; currency: string } };
@@ -36,6 +37,9 @@ async function session(c: any, userId: string, version = 0) {
   if (!secret) throw new Error("SESSION_SECRET belum dikonfigurasi");
   setCookie(c, "arenka_session", `${payload}.${await sign(payload, secret)}`, { httpOnly: true, secure: new URL(c.req.url).protocol === "https:", sameSite: "Lax", path: "/", maxAge: 60 * 60 * 24 * 14 });
 }
+
+const csPoint = createCsPoint({ encrypt: encryptSecret, decrypt: decryptSecret });
+app.route("/cspoint-bridge", csPoint.bridge);
 
 app.use("/api/*", async (c, next) => {
   const origin = c.req.header("Origin");
@@ -176,6 +180,7 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.get("/api/me", c => json(c, { workspace: c.get("workspace") }));
+app.route("/api/cspoint", csPoint.api);
 app.put("/api/workspace",async c=>{const body=await c.req.json<{name?:string}>().catch(()=>({} as {name?:string})),name=String(body.name??"").trim();if(name.length<2||name.length>80)return json(c,{error:"Nama workspace harus terdiri dari 2–80 karakter."},400);const result=await c.env.DB.prepare("UPDATE workspaces SET name=? WHERE id=? AND owner_id=?").bind(name,c.get("workspaceId"),c.get("userId")).run();return result.meta.changes?json(c,{workspace:{...c.get("workspace"),name}}):json(c,{error:"Workspace tidak ditemukan."},404)});
 const parseLandingPage=(b:any)=>{const title=String(b.title??"").trim(),slug=String(b.slug??"").trim().toLowerCase(),description=String(b.description??"").trim(),body=String(b.body??"").trim(),ctaLabel=String(b.cta_label??"Hubungi via WhatsApp").trim(),phone=String(b.cta_phone??"").replace(/[^0-9]/g,"");if(!title||title.length>120||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)||slug.length<3||slug.length>80||description.length>240||body.length>5000||!ctaLabel||ctaLabel.length>60||!/^[1-9]\d{7,14}$/.test(phone))return {error:"Periksa judul, slug, deskripsi, isi, teks tombol, dan nomor WhatsApp dengan kode negara."};return {title,slug,description,body,ctaLabel,phone,published:b.published===true||b.published===1||b.published==="true"?1:0}};
 app.get("/api/tracking/landing-pages",async c=>{const rows=await c.env.DB.prepare("SELECT id,slug,title,description,body,cta_label,cta_phone,published,created_at,updated_at FROM tracking_landing_pages WHERE workspace_id=? ORDER BY updated_at DESC LIMIT 100").bind(c.get("workspaceId")).all();return json(c,{pages:rows.results})});

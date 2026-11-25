@@ -69,6 +69,10 @@ Penerimaan domain eksternal secara otomatis memerlukan Cloudflare for SaaS pada 
 
 OAuth dan sinkronisasi biaya live belum tersedia. Halaman Integrasi menyebut status secara eksplisit dan hanya menyimpan nama/ID akun. Untuk mengaktifkan data live, setiap provider masih memerlukan aplikasi developer, redirect URI, secret terenkripsi, token refresh, dan implementasi API serta webhook sesuai provider.
 
+## Modul CSPoint
+
+Menu CSPoint menambahkan produk, pesanan, kontak, template follow-up, Knowledge PDF/ongkir, AI Agent dan gateway WhatsApp QR ke workspace Arenka yang sudah ada. Detail arsitektur, endpoint, runtime gateway, provenance sumber dan batas fitur ada di [CSPOINT_INTEGRATION.md](CSPOINT_INTEGRATION.md). Hasil validasi ada di [CSPOINT_AUDIT_2026-11-25.md](CSPOINT_AUDIT_2026-11-25.md). Jalankan `npm run test:cspoint` dan `npm run build` sebelum deployment. Fitur QR dan provider AI memerlukan konfigurasi layanan sendiri; menyimpan kode tidak berarti nomor/9Router sudah terhubung.
+
 ## Data pengunjung
 
 Pemilik situs bertanggung jawab memberi pemberitahuan kepada pengunjung dan mengatur persetujuan tracking sesuai aturan yang berlaku. Payload event dibatasi, dan endpoint tidak menerima access token iklan.

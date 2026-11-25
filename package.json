@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "test:cspoint": "node --test tests/cspoint.test.mjs shared/cspoint/*.test.mjs services/cspoint-gateway/test/*.test.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
@@ -18,16 +19,17 @@
     "clsx": "^2.1.1",
     "hono": "^4.10.6",
     "lucide-react": "^0.555.0",
+    "pdfjs-dist": "6.5.438",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.15.0",
+    "@cloudflare/workers-types": "^5.20261123.1",
     "@tailwindcss/vite": "^4.1.17",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@cloudflare/workers-types": "^5.20261123.1",
     "@vitejs/plugin-react": "^5.1.1",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",

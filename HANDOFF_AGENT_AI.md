@@ -257,3 +257,7 @@ Saat menerima task:
 7. Tambah migration baru jika schema berubah. Jangan edit migration terapan.
 8. Perbarui dokumentasi untuk perubahan kontrak/fitur; catat perubahan di GitHub.
 
+## Penambahan CSPoint (25 November 2026)
+
+Modul baru berada di `/cspoint/*`, memakai login/workspace Arenka. Baca [CSPOINT_INTEGRATION.md](CSPOINT_INTEGRATION.md) untuk schema migration 0019, UI, API, kode sumber yang diadaptasi, setup gateway Node 24 dan daftar prasyarat. Bukti pengujian ada di [CSPOINT_AUDIT_2026-11-25.md](CSPOINT_AUDIT_2026-11-25.md). Jangan mengganti fitur lama dengan aplikasi CSPoint terpisah atau menyimpulkan gateway/AI aktif tanpa memeriksa konfigurasi.
+

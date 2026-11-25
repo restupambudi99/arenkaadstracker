@@ -1,0 +1,1 @@
+export function rankKnowledge(query: string, documents: Array<{name: string; content: string}>, options?: {limit?: number; chunkSize?: number; overlap?: number}): Array<{name: string; content: string}>;
